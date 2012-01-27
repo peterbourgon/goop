@@ -1,0 +1,24 @@
+Establishing some global Clock. I'm not sure how it would be implemented, but
+the idea is that you can (for example) fire some event with not-perfect
+precision, and it should sync up to the next "beat", to enable better live
+playback.
+
+Some type of Pattern abstraction. You should be able to define some kind of
+note-sequence (Event-sequence?) which will be fired against some target on a
+regular basis.
+
+Modifier Events. Now, you must specify (eg.) hz = 440. But I want to be able to
+say hz = hz + 10 (or equivalent). There must be some range involved as well:
+the values shouldn't get above MAX or below MIN. And then, should they cycle,
+or just stop?  If cycling, how? MAX+1 yielding MIN, or MAX+1 yielding MAX-1 and
+a change of 'direction'?
+
+Note equivalences. A4 = 440.0.
+
+Proper bimodal UI, input/output panels.
+
+Tab completion (complex!)
+
+OSC integration
+
+Javascript -- module library

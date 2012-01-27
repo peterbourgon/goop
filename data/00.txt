@@ -1,0 +1,4 @@
+add sine a
+connect a mixer
+fire keydown 440 a
+

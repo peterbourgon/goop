@@ -1,0 +1,8 @@
+add sine a
+add gainlfo l
+connect a l 
+fire keydown 440 a
+
+every 2 connect l mixer
+every 3 disconnect l
+
