@@ -42,12 +42,13 @@ re-creating them; connected downstream modules detect the close, and reset
 their audio in channels (ie. to nil) accordingly.
 
 The general network-of-modules strategy is very similar to the architecture
-described in [http://www.cs.ox.ac.uk/people/jim.whitehead/cpa2011-draft.pdf Jim
-Whitehead's webpipes framework (PDF)], except that his Chains and Process
-Networks are typically defined once, at the beginning of program execution, and
-not re-mapped during runtime. His Modules (called Processes) are modeled as
-functions rather than structs, as they don't typically need to store state
-(beyond what can be kept in the Context object passed between them).
+described in [Jim Whitehead's webpipes framework][1], except that his Chains
+and Process Networks are typically defined once, at the beginning of program
+execution, and not re-mapped during runtime. His Modules (called Processes) are
+modeled as functions rather than structs, as they don't typically need to store
+state, beyond what can be kept in the Context object passed between them.
+
+ [1]: http://www.cs.ox.ac.uk/people/jim.whitehead/cpa2011-draft.pdf
 
 Compatibility
 -------------
