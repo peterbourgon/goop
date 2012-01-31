@@ -1,3 +1,4 @@
 goop
 bin/*
+_obj/*
 *.6
