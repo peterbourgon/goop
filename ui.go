@@ -102,6 +102,16 @@ func doAdd(args []string) {
 		add(args[1], NewSquareGenerator())
 	case "saw":
 		add(args[1], NewSawGenerator())
+	case "wav":
+		if len(args) < 3 {
+			fmt.Printf("add wav <name> <filename>\n")
+			return
+		}
+		if g := NewWavGenerator(args[2]); g != nil {
+			add(args[1], g)
+		} else {
+			fmt.Printf("add: wav: failed: probably bad file\n")
+		}
 	case "lfo", "gainlfo":
 		add(args[1], NewGainLFO())
 	case "delay":

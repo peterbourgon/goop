@@ -96,10 +96,7 @@ func (gc *generatorChannels) generatorLoop(sp *simpleParameters, vp valueProvide
 				sp.process(ev)
 			}
 		case gc.audioOut <- nextBuffer(vp):
-			// TODO this works, but you get "clicks" on every tick event with
-			// continuous streams, eg. data/06.txt. Need to find a way to
-			// prioritize the audioOut stream without starving the eventIn
-			// when there's no downstream consumer.
+			break
 		}
 	}
 }
@@ -120,7 +117,7 @@ func nextSawValue(hz float32, phase *float32) float32 {
 	var val float32 = 0.0
 	switch {
 	case *phase < 0.25:
-		val	= *phase * 4.0
+		val = *phase * 4.0
 	case *phase < 0.75:
 		val = 1 - ((*phase - 0.25) * 4)
 	case *phase <= 1.0:
@@ -134,7 +131,6 @@ func nextSawValue(hz float32, phase *float32) float32 {
 	}
 	return float32(val)
 }
-
 
 // A simpleGenerator is any generator which can provide audio data 
 // using only simpleParameters. Handily, this describes a large class of
@@ -187,4 +183,50 @@ func NewSawGenerator() *SawGenerator {
 // frequency described by the simpleParameter's hz parameter.
 func (g *SawGenerator) nextValue() float32 {
 	return nextSawValue(g.hz, &g.phase) * g.gain
+}
+
+type WavGenerator struct {
+	generatorChannels
+	data []float32
+	pos  int
+	gain float32
+}
+
+func NewWavGenerator(file string) *WavGenerator {
+	wd, dataErr := ReadWavData(file)
+	if dataErr != nil {
+		return nil
+	}
+	g := &WavGenerator{makeGeneratorChannels(), btof32(wd.data), 0, 1.0}
+	go g.generatorLoop()
+	return g
+}
+
+// Special case, as we have no (need for) simpleParameters.
+func (g *WavGenerator) generatorLoop() {
+	for {
+		select {
+		case ev := <-g.eventIn:
+			switch ev.name {
+			case "disconnect":
+				g.Reset()
+			case "kill":
+				g.Reset()
+				return
+			case "gain":
+				g.gain = ev.val
+			}
+		case g.audioOut <- nextBuffer(g):
+			break
+		}
+	}
+}
+
+func (g *WavGenerator) nextValue() float32 {
+	f := g.data[g.pos] * g.gain
+	g.pos++
+	if g.pos >= len(g.data) {
+		g.pos = 0
+	}
+	return f
 }
