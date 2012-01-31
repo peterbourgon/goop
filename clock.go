@@ -1,4 +1,4 @@
-package main
+package goop
 
 import (
 	"sync"
@@ -63,10 +63,10 @@ func (c *Clock) run() {
 			for name, r := range c.tickReceivers {
 				select {
 				case r.Events() <- Event{"tick", 0.0, nil}:
-					continue
+					break
 				default:
 					println("tick receiver", name, "wasn't ready")
-					continue
+					break
 				}
 			}
 			func() {

@@ -1,4 +1,4 @@
-package main
+package goop
 
 import (
 	"code.google.com/p/portaudio-go/portaudio"
