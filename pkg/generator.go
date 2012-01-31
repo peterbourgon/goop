@@ -1,4 +1,4 @@
-package main
+package goop
 
 import (
 	"math"
@@ -11,7 +11,6 @@ type generatorChannels struct {
 	audioOut chan []float32
 }
 
-// Events satisfies the EventReceiver interface for generatorChannels.
 func (gc *generatorChannels) Events() chan<- Event {
 	return gc.eventIn
 }
@@ -74,7 +73,7 @@ func nextBuffer(vp valueProvider) []float32 {
 	return buf
 }
 
-// generatorLoop is the common function which should drive all Generators
+// generatorLoop is the common function that should drive all Generators
 // which contain generatorChannels and are driven by simpleParameters.
 // 
 // It processes certain common Event types, and passes the remaining Events
@@ -113,6 +112,7 @@ func nextSineValue(hz float32, phase *float32) float32 {
 	return val
 }
 
+// nextSawValue computes the next value in a simple saw wave.
 func nextSawValue(hz float32, phase *float32) float32 {
 	var val float32 = 0.0
 	switch {
@@ -179,7 +179,7 @@ func NewSawGenerator() *SawGenerator {
 	return &g
 }
 
-// nextValue for a SineGenerator will output a pure sine waveform at the
+// nextValue for a SineGenerator will output a sawtooth waveform at the
 // frequency described by the simpleParameter's hz parameter.
 func (g *SawGenerator) nextValue() float32 {
 	return nextSawValue(g.hz, &g.phase) * g.gain
@@ -197,6 +197,7 @@ func NewWavGenerator(file string) *WavGenerator {
 	if dataErr != nil {
 		return nil
 	}
+	// TODO we need to account for differences in the sample rate, probably?
 	g := &WavGenerator{makeGeneratorChannels(), btof32(wd.data), 0, 1.0}
 	go g.generatorLoop()
 	return g

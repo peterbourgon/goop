@@ -5,11 +5,6 @@ import (
 	"time"
 )
 
-type TargetAndEvent struct {
-	target chan<- Event
-	event  Event
-}
-
 type Clock struct {
 	eventBuf      chan TargetAndEvent
 	bpm           float32
@@ -34,6 +29,8 @@ func (c *Clock) Events() chan<- Event {
 func (c *Clock) Queue(tev TargetAndEvent) {
 	c.eventBuf <- tev
 }
+
+func (c *Clock) DeferredEvents() chan<- TargetAndEvent { return c.eventBuf }
 
 func (c *Clock) Register(name string, r EventReceiver) {
 	c.mtx.Lock()
@@ -73,7 +70,7 @@ func (c *Clock) run() {
 				for {
 					select {
 					case et := <-c.eventBuf:
-						et.target <- et.event
+						et.target.Events() <- et.event
 					default:
 						return
 					}

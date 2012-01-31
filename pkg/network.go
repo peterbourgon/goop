@@ -45,20 +45,16 @@ func (m *synchronizedMap) del(key string) error {
 	return nil
 }
 
-// A goop Network is a collection of arbitrary Modules, plus a few
-// singletons which help it model a patch-bay of audio "equipment".
+// A goop Network is a collection of arbitrary Modules,
+// plus some helper interfaces.
 type Network struct {
 	container *synchronizedMap
-	mixer     *Mixer
-	clock     *Clock
-	autocron  int64
+	der       DeferredEventReceiver
 }
 
-func NewNetwork() *Network {
+func NewNetwork(der DeferredEventReceiver) *Network {
 	container := newSynchronizedMap()
-	mixer := NewMixer() // fires mixer.eventLoop and mixer.Play
-	clock := NewClock() // fires clock.run
-	g := &Network{container, mixer, clock, 0}
+	g := &Network{container, der}
 	return g
 }
 
@@ -118,7 +114,7 @@ const (
 	Deferred
 )
 
-func (n *Network) Fire(to string, when int, ev Event) error {
+func (n *Network) Fire(to string, ev Event, when int) error {
 	r, err := n.getEventReceiver(to)
 	if err != nil {
 		return errors.New(fmt.Sprintf("fire: %s", err))
@@ -127,7 +123,7 @@ func (n *Network) Fire(to string, when int, ev Event) error {
 	case Immediately:
 		r.Events() <- ev
 	case Deferred:
-		n.clock.Queue(TargetAndEvent{r.Events(), ev})
+		n.der.DeferredEvents() <-TargetAndEvent{r, ev}
 	default:
 		panic("unreachable")
 	}
