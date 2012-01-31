@@ -113,21 +113,24 @@ func (n *Network) Disconnect(from string) error {
 	return nil
 }
 
-func (n *Network) Fire(to string, ev Event) error {
-	r, err := n.getEventReceiver(to)
-	if err != nil {
-		return errors.New(fmt.Sprintf("fire: %s", err))
-	}
-	r.Events() <- ev
-	return nil
-}
+const (
+	Immediately = iota
+	Deferred
+)
 
-func (n *Network) QueueFire(to string, ev Event) error {
+func (n *Network) Fire(to string, when int, ev Event) error {
 	r, err := n.getEventReceiver(to)
 	if err != nil {
 		return errors.New(fmt.Sprintf("fire: %s", err))
 	}
-	n.clock.Queue(TargetAndEvent{r.Events(), ev})
+	switch when {
+	case Immediately:
+		r.Events() <- ev
+	case Deferred:
+		n.clock.Queue(TargetAndEvent{r.Events(), ev})
+	default:
+		panic("unreachable")
+	}
 	return nil
 }
 
