@@ -39,14 +39,14 @@ type simpleParameters struct {
 }
 
 // process applies Events which should have an effect on simpleParameters.
-func (sp *simpleParameters) process(e Event) {
-	switch e.name {
+func (sp *simpleParameters) process(ev Event) {
+	switch ev.Name {
 	case "keydown":
-		sp.hz = e.val
+		sp.hz = ev.Val
 	case "keyup":
 		sp.hz = 0.0
 	case "gain":
-		sp.gain = e.val
+		sp.gain = ev.Val
 	}
 }
 
@@ -85,7 +85,7 @@ func (gc *generatorChannels) generatorLoop(sp *simpleParameters, vp valueProvide
 	for {
 		select {
 		case ev := <-gc.eventIn:
-			switch ev.name {
+			switch ev.Name {
 			case "disconnect":
 				gc.Reset()
 			case "kill":
@@ -208,14 +208,14 @@ func (g *WavGenerator) generatorLoop() {
 	for {
 		select {
 		case ev := <-g.eventIn:
-			switch ev.name {
+			switch ev.Name {
 			case "disconnect":
 				g.Reset()
 			case "kill":
 				g.Reset()
 				return
 			case "gain":
-				g.gain = ev.val
+				g.gain = ev.Val
 			}
 		case g.audioOut <- nextBuffer(g):
 			break

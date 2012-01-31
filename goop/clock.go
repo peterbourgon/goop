@@ -50,9 +50,9 @@ func (c *Clock) run() {
 	for {
 		select {
 		case ev := <-c.eventIn:
-			switch ev.name {
+			switch ev.Name {
 			case "bpm":
-				c.bpm = ev.val
+				c.bpm = ev.Val
 			case "kill":
 				return
 			}

@@ -2,7 +2,6 @@ package main
 
 import (
 	"goop"
-	"errors"
 	"fmt"
 	"github.com/bobappleyard/readline"
 	//"github.com/nsf/termbox-go"
@@ -144,7 +143,7 @@ func doAdd(args []string) {
 }
 
 func add(name string, item interface{}) bool {
-	if err := NETWORK.add(name, item); err != nil {
+	if err := NETWORK.Add(name, item); err != nil {
 		fmt.Printf("add: %s: %s\n", name, err)
 		return false
 	}
@@ -158,15 +157,9 @@ func doDel(args []string) {
 		return
 	}
 	name := args[0]
-	item, ok := X[name]
-	if !ok {
-		fmt.Printf("del: %s: no such thing\n", name)
+	if err := NETWORK.Del(name); err != nil {
+		fmt.Printf("del: %s: %s\n", name, err)
 	}
-	if r, ok := item.(EventReceiver); ok {
-		CLOCK.Unregister(name) // just in case
-		r.Events() <- Event{"kill", 0.0, nil}
-	}
-	delete(X, name)
 	fmt.Printf("del: %s: OK\n", name)
 }
 
@@ -181,46 +174,12 @@ func doEvery(args []string) {
 	doAdd(args)
 }
 
-func toEventReceiver(name string) (EventReceiver, error) {
-	item, itemOk := X[name]
-	if !itemOk {
-		return nil, errors.New(fmt.Sprintf("%s doesn't exist", name))
-	}
-	receiver, receiverOk := item.(EventReceiver)
-	if !receiverOk {
-		return nil, errors.New(fmt.Sprintf("%s doesn't receive events", name))
-	}
-	return receiver, nil
-}
-
 func doConnect(args []string) {
 	if len(args) < 2 {
 		fmt.Printf("connect <from> <to>\n")
 		return
 	}
-	fromName, toName := args[0], args[1]
-	fromItem, fromOk := X[fromName]
-	if !fromOk {
-		fmt.Printf("%s doesn't exist\n", fromName)
-		return
-	}
-	_, fromSenderOk := fromItem.(AudioSender)
-	if !fromSenderOk {
-		fmt.Printf("%s doesn't send audio\n", fromName)
-		return
-	}
-	toItem, toOk := X[toName]
-	if !toOk {
-		fmt.Printf("%s doesn't exist\n", toName)
-		return
-	}
-	toReceiver, toReceiverOk := toItem.(EventReceiver)
-	if !toReceiverOk {
-		fmt.Printf("%s can't receive (connection) events\n", toName)
-		return
-	}
-	// Should be buffer this one?
-	toReceiver.Events() <- Event{"receivefrom", 0.0, fromItem}
+	NETWORK.Connect(args[0], args[1])
 }
 
 func doDisconnect(args []string) {
@@ -228,19 +187,7 @@ func doDisconnect(args []string) {
 		fmt.Printf("disconnect <from>\n")
 		return
 	}
-	fromName := args[0]
-	item, itemOk := X[fromName]
-	if !itemOk {
-		fmt.Printf("disconnect: %s: doesn't exist\n", fromName)
-		return
-	}
-	r, ok := item.(EventReceiver)
-	if !ok {
-		fmt.Printf("disconnect: %s: can't receive events\n", fromName)
-		return
-	}
-	// send it a Reset event (note: don't Reset directly!!)
-	r.Events() <- Event{"disconnect", 0.0, nil}
+	NETWORK.Disconnect(args[0])
 }
 
 func doFire(args []string) {
@@ -255,17 +202,8 @@ func doFire(args []string) {
 		return
 	}
 	receiverName := args[2]
-	receiverItem, receiverItemOk := X[receiverName]
-	if !receiverItemOk {
-		fmt.Printf("fire: %s: invalid\n", receiverName)
-		return
-	}
-	receiver, receiverOk := receiverItem.(EventReceiver)
-	if !receiverOk {
-		fmt.Printf("fire: %s: can't receive events", receiverName)
-		return
-	}
-	fire(Event{name, float32(val64), nil}, receiver)
+	ev := goop.Event{name, float32(val64), nil}
+	NETWORK.Fire(receiverName, ev, goop.Immediately)
 }
 
 func doFirePattern(args []string) {
@@ -274,31 +212,13 @@ func doFirePattern(args []string) {
 		return
 	}
 	patternName, receiverName := args[0], args[1]
-	patternItem, patternItemOk := X[patternName]
-	if !patternItemOk {
-		fmt.Printf("firepattern: %s: invalid\n", patternName)
+	receiverItem, receiverItemErr := NETWORK.Get(receiverName)
+	if receiverItemErr != nil {
+		fmt.Printf("firepattern: %s: %s\n", receiverItemErr)
 		return
 	}
-	pattern, patternOk := patternItem.(*Pattern)
-	if !patternOk {
-		fmt.Printf("firepattern: %s: not a pattern\n", patternName)
-		return
-	}
-	receiverItem, receiverItemOk := X[receiverName]
-	if !receiverItemOk {
-		fmt.Printf("firepattern: %s: invalid\n", receiverName)
-		return
-	}
-	receiver, receiverOk := receiverItem.(EventReceiver)
-	if !receiverOk {
-		fmt.Printf("firepattern: %s: can't receive events\n", receiverName)
-		return
-	}
-	pattern.Fire(receiver)
-}
-
-func fire(ev Event, r EventReceiver) {
-	CLOCK.Queue(TargetAndEvent{r.Events(), ev})
+	ev := goop.Event{"fire", 0.0, receiverItem}
+	NETWORK.Fire(patternName, ev, goop.Deferred)
 }
 
 func doStopall(args []string) {
@@ -319,31 +239,35 @@ func doSleep(args []string) {
 }
 
 func doInfo(args []string) {
-	for name, o := range X {
+	for _, name := range NETWORK.Names() {
 		what, details := "unknown", ""
+		o, err := NETWORK.Get(name)
+		if err != nil {
+			continue
+		}
 		switch x := o.(type) {
-		case *Mixer:
+		case *goop.Mixer:
 			what = "the mixer"
-			details = fmt.Sprintf("%d connections", len(x.chans))
-		case *Clock:
+			//details = fmt.Sprintf("%d connections", len(x.chans))
+		case *goop.Clock:
 			what = "the clock"
-			details = fmt.Sprintf("at %.2f BPM", x.bpm)
-		case *SineGenerator:
+			//details = fmt.Sprintf("at %.2f BPM", x.bpm)
+		case *goop.SineGenerator:
 			what = "sine generator"
-			details = fmt.Sprintf("%.2f hz", x.hz)
-		case *SquareGenerator:
+			//details = fmt.Sprintf("%.2f hz", x.hz)
+		case *goop.SquareGenerator:
 			what = "square generator"
-			details = fmt.Sprintf("%.2f hz", x.hz)
-		case *GainLFO:
+			//details = fmt.Sprintf("%.2f hz", x.hz)
+		case *goop.GainLFO:
 			what = "gain LFO"
-			details = fmt.Sprintf("%.2f-%.2f @%.2f hz", x.min, x.max, x.hz)
-		case *Delay:
+			//details = fmt.Sprintf("%.2f-%.2f @%.2f hz", x.min, x.max, x.hz)
+		case *goop.Delay:
 			what = "delay"
-			details = fmt.Sprintf("%.2fs", x.delay)
-		case *Cron:
+			//details = fmt.Sprintf("%.2fs", x.delay)
+		case *goop.Cron:
 			what = "cron"
-			details = fmt.Sprintf("every %d ticks, %s", x.delay, x.cmd)
-		case *Pattern:
+			//details = fmt.Sprintf("every %d ticks, %s", x.delay, x.cmd)
+		case *goop.Pattern:
 			what = "pattern"
 			details = fmt.Sprintf("%s", x)
 		}

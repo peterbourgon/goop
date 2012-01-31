@@ -31,7 +31,7 @@ func newEventDelay(s string) (EventDelay, error) {
 }
 
 func (evd EventDelay) String() string {
-	return fmt.Sprintf("%s %.3f %d", evd.ev.name, evd.ev.val, evd.delay)
+	return fmt.Sprintf("%s %.3f %d", evd.ev.Name, evd.ev.Val, evd.delay)
 }
 
 type Pattern struct {
@@ -64,14 +64,14 @@ func (p *Pattern) patternLoop() {
 	for {
 		select {
 		case ev := <-p.eventIn:
-			switch ev.name {
+			switch ev.Name {
 			case "kill":
 				return
 			case "reset":
 				target = nil
 				pos = 0
 			case "fire":
-				if r, ok := ev.arg.(EventReceiver); ok {
+				if r, ok := ev.Arg.(EventReceiver); ok {
 					target = r
 				}
 			case "tick":

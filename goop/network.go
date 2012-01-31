@@ -45,6 +45,17 @@ func (m *synchronizedMap) del(key string) error {
 	return nil
 }
 
+func (m *synchronizedMap) names() []string {
+	m.mtx.Lock()
+	defer m.mtx.Unlock()
+	n, i := make([]string, len(m.m)), 0
+	for name, _ := range m.m {
+		n[i] = name
+		i++
+	}
+	return n
+}
+
 // A goop Network is a collection of arbitrary Modules,
 // plus some helper interfaces.
 type Network struct {
@@ -72,6 +83,14 @@ func (n *Network) Del(name string) error {
 	}
 	n.container.del(name)
 	return nil
+}
+
+func (n *Network) Get(name string) (interface{}, error) {
+	return n.container.get(name)
+}
+
+func (n *Network) Names() []string {
+	return n.container.names()
 }
 
 func (n *Network) Connect(from, to string) error {

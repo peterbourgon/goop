@@ -48,13 +48,13 @@ func (m *Mixer) eventLoop() {
 	for {
 		select {
 		case ev := <-m.eventIn:
-			switch ev.name {
+			switch ev.Name {
 			case "kill":
 				m.DropAll()
 				m.Stop()
 				return
 			case "receivefrom":
-				if sender, ok := ev.arg.(AudioSender); ok {
+				if sender, ok := ev.Arg.(AudioSender); ok {
 					func() {
 						m.mtx.Lock()
 						defer m.mtx.Unlock()

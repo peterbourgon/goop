@@ -24,7 +24,7 @@ func (c *Cron) cronLoop() {
 	for {
 		select {
 		case ev := <-c.eventIn:
-			switch ev.name {
+			switch ev.Name {
 			case "kill":
 				close(c.eventIn)
 				return

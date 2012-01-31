@@ -86,9 +86,9 @@ func (ec *effectChannels) effectLoop(ep eventProcessor, ap audioProcessor) {
 		}
 		select {
 		case ev := <-ec.eventIn:
-			switch ev.name {
+			switch ev.Name {
 			case "receivefrom":
-				if sender, ok := ev.arg.(AudioSender); ok {
+				if sender, ok := ev.Arg.(AudioSender); ok {
 					ec.audioIn = sender.AudioOut()
 				}
 			case "disconnect":
@@ -139,13 +139,13 @@ func NewGainLFO() *GainLFO {
 
 // GainLFO's processEvent manages changes to min, max and hz values.
 func (e *GainLFO) processEvent(ev Event) {
-	switch ev.name {
+	switch ev.Name {
 	case "min":
-		e.min = ev.val
+		e.min = ev.Val
 	case "max":
-		e.max = ev.val
+		e.max = ev.Val
 	case "hz":
-		e.hz = ev.val
+		e.hz = ev.Val
 	}
 }
 
@@ -183,9 +183,9 @@ func (e *Delay) resetDelay(d float32) {
 
 // Delay's processEvent manages changes to the delay parameter.
 func (e *Delay) processEvent(ev Event) {
-	switch ev.name {
+	switch ev.Name {
 	case "delay":
-		e.resetDelay(ev.val)
+		e.resetDelay(ev.Val)
 	}
 }
 
