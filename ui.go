@@ -340,6 +340,8 @@ func doInfo(args []string) {
 		case *SquareGenerator:
 			what = "square generator"
 			details = fmt.Sprintf("%.2f hz", x.hz)
+		case *WavGenerator:
+			what = "wav generator"
 		case *GainLFO:
 			what = "gain LFO"
 			details = fmt.Sprintf("%.2f-%.2f @%.2f hz", x.min, x.max, x.hz)
