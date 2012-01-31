@@ -1,4 +1,5 @@
-goop
-bin/*
-_obj/*
 *.6
+*.8
+_obj/*
+bin/*
+goop
