@@ -87,9 +87,31 @@ func (n *Network) Disconnect(from string) error {
 }
 
 func (n *Network) Fire(to string, ev Event) error {
-	return errors.New("not yet implemented")
+	r, err := n.getEventReceiver(to)
+	if err != nil {
+		return errors.New(fmt.Sprintf("fire: %s", err))
+	}
+	r.Events() <- ev
+	return nil
 }
 
 func (n *Network) QueueFire(to string, ev Event) error {
-	return errors.New("not yet implemented")
+	r, err := n.getEventReceiver(to)
+	if err != nil {
+		return errors.New(fmt.Sprintf("fire: %s", err))
+	}
+	n.clock.Queue(TargetAndEvent{r.Events(), ev})
+	return nil
+}
+
+func (n *Network) getEventReceiver(name string) (EventReceiver, error) {
+	item, itemErr := n.container.get(name)
+	if itemErr != nil {
+		return nil, itemErr
+	}
+	r, rOk := item.(EventReceiver)
+	if !rOk {
+		return nil, errors.New(fmt.Sprintf("%s: can't receive events", name))
+	}
+	return r, nil
 }
