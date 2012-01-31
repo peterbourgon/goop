@@ -1,9 +1,9 @@
 package main
 
 import (
-	"goop"
 	"fmt"
 	"github.com/bobappleyard/readline"
+	"goop"
 	//"github.com/nsf/termbox-go"
 	"strconv"
 	"strings"

@@ -56,7 +56,7 @@ func ReadWavData(file string) (WavData, error) {
 	binary.Read(f, binary.LittleEndian, &wav.Subchunk2Size)
 	wav.data = make([]byte, wav.Subchunk2Size)
 	binary.Read(f, binary.LittleEndian, &wav.data)
-	
+
 	// bam
 	return wav, nil
 }

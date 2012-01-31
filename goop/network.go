@@ -142,7 +142,7 @@ func (n *Network) Fire(to string, ev Event, when int) error {
 	case Immediately:
 		r.Events() <- ev
 	case Deferred:
-		n.der.DeferredEvents() <-TargetAndEvent{r, ev}
+		n.der.DeferredEvents() <- TargetAndEvent{r, ev}
 	default:
 		panic("unreachable")
 	}

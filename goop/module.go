@@ -33,4 +33,3 @@ type DeferredEventReceiver interface {
 type AudioSender interface {
 	AudioOut() <-chan []float32
 }
-
