@@ -1,6 +1,7 @@
 package main
 
 import (
+	"goop"
 	"errors"
 	"fmt"
 	"github.com/bobappleyard/readline"
@@ -11,9 +12,10 @@ import (
 )
 
 var (
-	X        map[string]interface{}
+	CLOCK    *goop.Clock
+	MIXER    *goop.Mixer
+	NETWORK  *goop.Network
 	AUTOCRON int64
-	CLOCK    *Clock
 )
 
 // In general, UI commands should only generate Events, which
@@ -22,11 +24,12 @@ var (
 // other than an EventReceiver, you're doing something wrong!
 
 func init() {
-	X = make(map[string]interface{})
-	CLOCK = NewClock()
-	add("clock", CLOCK)
-	add("mixer", MIXER)
+	CLOCK = goop.NewClock()
+	MIXER = goop.NewMixer()
+	NETWORK = goop.NewNetwork(CLOCK)
 	AUTOCRON = 1
+	NETWORK.Add("clock", CLOCK)
+	NETWORK.Add("mixer", MIXER)
 }
 
 func uiParse(s string) bool {
@@ -97,25 +100,25 @@ func doAdd(args []string) {
 	}
 	switch args[0] {
 	case "sin", "sine", "sinegenerator":
-		add(args[1], NewSineGenerator())
+		add(args[1], goop.NewSineGenerator())
 	case "square", "sq":
-		add(args[1], NewSquareGenerator())
+		add(args[1], goop.NewSquareGenerator())
 	case "saw":
-		add(args[1], NewSawGenerator())
+		add(args[1], goop.NewSawGenerator())
 	case "wav":
 		if len(args) < 3 {
 			fmt.Printf("add wav <name> <filename>\n")
 			return
 		}
-		if g := NewWavGenerator(args[2]); g != nil {
+		if g := goop.NewWavGenerator(args[2]); g != nil {
 			add(args[1], g)
 		} else {
 			fmt.Printf("add: wav: failed: probably bad file\n")
 		}
 	case "lfo", "gainlfo":
-		add(args[1], NewGainLFO())
+		add(args[1], goop.NewGainLFO())
 	case "delay":
-		add(args[1], NewDelay())
+		add(args[1], goop.NewDelay())
 	case "cron":
 		if len(args) < 4 {
 			fmt.Printf("add cron <name> <delay> <cmd...>\n")
@@ -126,14 +129,14 @@ func doAdd(args []string) {
 			fmt.Printf("%s: invalid delay: %s\n", args[2], err)
 			return
 		}
-		c := NewCron(delay64, uiParse, strings.Join(args[3:], " "))
+		c := goop.NewCron(delay64, uiParse, strings.Join(args[3:], " "))
 		add(args[1], c)
 	case "pattern":
 		if len(args) < 3 {
 			fmt.Printf("add pattern <name> <event-delay> / ...\n")
 			return
 		}
-		p := NewPattern(strings.Join(args[2:], " "))
+		p := goop.NewPattern(strings.Join(args[2:], " "))
 		add(args[1], p)
 	default:
 		fmt.Printf("add: what?\n")
@@ -141,20 +144,11 @@ func doAdd(args []string) {
 }
 
 func add(name string, item interface{}) bool {
-	if _, exists := X[name]; exists {
-		fmt.Printf("add: %s: exists\n", name)
+	if err := NETWORK.add(name, item); err != nil {
+		fmt.Printf("add: %s: %s\n", name, err)
 		return false
 	}
-	X[name] = item
-	if cron, ok := item.(*Cron); ok {
-		CLOCK.Register(name, cron)
-	}
-	/* temporarily disable registering of things to the Clock
-	if r, ok := item.(EventReceiver); ok {
-		CLOCK.Register(name, r)
-	}
-	*/
-	fmt.Printf("add: %s: OK\n", name)
+	fmt.Printf("add: %s: OK", name)
 	return true
 }
 
