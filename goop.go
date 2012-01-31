@@ -56,8 +56,8 @@ type Network struct {
 
 func NewNetwork() *Network {
 	container := newSynchronizedMap()
-	mixer := NewMixer()
-	clock := NewClock()
+	mixer := NewMixer() // fires mixer.eventLoop and mixer.Play
+	clock := NewClock() // fires clock.run
 	g := &Network{container, mixer, clock, 0}
 	return g
 }
@@ -79,11 +79,38 @@ func (n *Network) Del(name string) error {
 }
 
 func (n *Network) Connect(from, to string) error {
-	return errors.New("not yet implemented")
+	fromItem, fromErr := n.container.get(from)
+	if fromErr != nil {
+		return errors.New(fmt.Sprintf("connect: %s", fromErr))
+	}
+	_, fromSenderOk := fromItem.(AudioSender)
+	if !fromSenderOk {
+		return errors.New(fmt.Sprintf("connect: %s: doesn't send audio", from))
+	}
+	toItem, toErr := n.container.get(to)
+	if toErr != nil {
+		return errors.New(fmt.Sprintf("connect: %s", toErr))
+	}
+	toReceiver, toReceiverOk := toItem.(EventReceiver)
+	if !toReceiverOk {
+		return errors.New(fmt.Sprintf("connect: %s: can't receive events", to))
+	}
+	// Should be buffer this one?
+	toReceiver.Events() <- Event{"receivefrom", 0.0, fromItem}
+	return nil
 }
 
 func (n *Network) Disconnect(from string) error {
-	return errors.New("not yet implemented")
+	fromItem, fromErr := n.container.get(from)
+	if fromErr != nil {
+		return errors.New(fmt.Sprintf("disconnect: %s", fromErr))
+	}
+	r, ok := fromItem.(EventReceiver)
+	if !ok {
+		return errors.New(fmt.Sprintf("connect: %s: can't receive events", from))
+	}
+	r.Events() <- Event{"disconnect", 0.0, nil}
+	return nil
 }
 
 func (n *Network) Fire(to string, ev Event) error {

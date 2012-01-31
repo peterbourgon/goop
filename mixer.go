@@ -17,15 +17,6 @@ const (
 	OTHER_CHAN_BUFFER = 10
 )
 
-var (
-	MIXER *Mixer
-)
-
-func init() {
-	MIXER = NewMixer()
-	go MIXER.Play()
-}
-
 // A Mixer multiplexes audio data channels from AudioSenders into a single
 // stream, which it passes to the audio subsystem.
 type Mixer struct {
@@ -47,6 +38,7 @@ func NewMixer() *Mixer {
 	m := Mixer{mtx: mx, gain: ga, on: on, chans: ch, eventIn: ei}
 	m.cnd = sync.NewCond(&m.mtx)
 	go m.eventLoop()
+	go m.Play()
 	return &m
 }
 
