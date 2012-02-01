@@ -2,6 +2,7 @@ package goop
 
 import (
 	"math"
+	"fmt"
 )
 
 // generatorChannels are designed to be embedded into Generators
@@ -142,6 +143,10 @@ type simpleGenerator struct {
 
 type SineGenerator simpleGenerator
 
+func (g *SineGenerator) String() string {
+	return fmt.Sprintf("%.2f hz, gain %.2f", g.hz, g.gain)
+}
+
 func NewSineGenerator() *SineGenerator {
 	g := SineGenerator{makeGeneratorChannels(), makeSimpleParameters()}
 	go g.generatorLoop(&g.simpleParameters, &g)
@@ -155,6 +160,10 @@ func (g *SineGenerator) nextValue() float32 {
 }
 
 type SquareGenerator simpleGenerator
+
+func (g *SquareGenerator) String() string {
+	return fmt.Sprintf("%.2f hz, gain %.2f", g.hz, g.gain)
+}
 
 func NewSquareGenerator() *SquareGenerator {
 	g := SquareGenerator{makeGeneratorChannels(), makeSimpleParameters()}
@@ -173,6 +182,10 @@ func (g *SquareGenerator) nextValue() float32 {
 
 type SawGenerator simpleGenerator
 
+func (g *SawGenerator) String() string {
+	return fmt.Sprintf("%.2f hz, gain %.2f", g.hz, g.gain)
+}
+
 func NewSawGenerator() *SawGenerator {
 	g := SawGenerator{makeGeneratorChannels(), makeSimpleParameters()}
 	go g.generatorLoop(&g.simpleParameters, &g)
@@ -190,6 +203,10 @@ type WavGenerator struct {
 	data []float32
 	pos  int
 	gain float32
+}
+
+func (g *WavGenerator) String() string {
+	return fmt.Sprintf("gain %.2f", g.gain)
 }
 
 func NewWavGenerator(file string) *WavGenerator {

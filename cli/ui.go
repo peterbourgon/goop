@@ -137,6 +137,7 @@ func doAdd(args []string) {
 			return
 		}
 		p := goop.NewPattern(strings.Join(args[2:], " "))
+		CLOCK.Events() <- goop.Event{"register", 0.0, p}
 		add(args[1], p)
 	default:
 		fmt.Printf("add: what?\n")
@@ -148,7 +149,7 @@ func add(name string, item interface{}) bool {
 		fmt.Printf("add: %s: %s\n", name, err)
 		return false
 	}
-	fmt.Printf("add: %s: OK", name)
+	fmt.Printf("add: %s: OK\n", name)
 	return true
 }
 
@@ -257,29 +258,21 @@ func doInfo(args []string) {
 		}
 		switch x := o.(type) {
 		case *goop.Mixer:
-			what = "the mixer"
-			//details = fmt.Sprintf("%d connections", len(x.chans))
+			what, details = "the mixer", fmt.Sprintf("%s", x)
 		case *goop.Clock:
-			what = "the clock"
-			//details = fmt.Sprintf("at %.2f BPM", x.bpm)
+			what, details = "the clock", fmt.Sprintf("%s", x)
 		case *goop.SineGenerator:
-			what = "sine generator"
-			//details = fmt.Sprintf("%.2f hz", x.hz)
+			what, details = "sine generator", fmt.Sprintf("%s", x)
 		case *goop.SquareGenerator:
-			what = "square generator"
-			//details = fmt.Sprintf("%.2f hz", x.hz)
+			what, details = "square generator", fmt.Sprintf("%s", x)
 		case *goop.GainLFO:
-			what = "gain LFO"
-			//details = fmt.Sprintf("%.2f-%.2f @%.2f hz", x.min, x.max, x.hz)
+			what, details = "gain LFO", fmt.Sprintf("%s", x)
 		case *goop.Delay:
-			what = "delay"
-			//details = fmt.Sprintf("%.2fs", x.delay)
+			what, details = "delay", fmt.Sprintf("%s", x)
 		case *goop.Cron:
-			what = "cron"
-			//details = fmt.Sprintf("every %d ticks, %s", x.delay, x.cmd)
+			what, details = "cron", fmt.Sprintf("%s", x)
 		case *goop.Pattern:
-			what = "pattern"
-			details = fmt.Sprintf("%s", x)
+			what, details = "pattern", fmt.Sprintf("%s", x)
 		}
 		msg := fmt.Sprintf(" %s - %s", name, what)
 		if details != "" {

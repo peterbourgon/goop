@@ -2,6 +2,7 @@ package goop
 
 import (
 	"time"
+	"fmt"
 )
 
 type Clock struct {
@@ -23,6 +24,10 @@ func NewClock() *Clock {
 func (c *Clock) Events() chan<- Event { return c.eventIn }
 
 func (c *Clock) DeferredEvents() chan<- TargetAndEvent { return c.eventBuf }
+
+func (c *Clock) String() string { 
+	return fmt.Sprintf("%.2f bpm, %d receivers", c.bpm, len(c.tickReceivers)) 
+}
 
 func (c *Clock) register(r EventReceiver) {
 	for _, existing := range c.tickReceivers {

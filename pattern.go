@@ -39,6 +39,8 @@ type Pattern struct {
 	eventDelays []EventDelay
 }
 
+func (p *Pattern) Events() chan<- Event { return p.eventIn }
+
 func NewPattern(s string) *Pattern {
 	eventIn := make(chan Event, OTHER_CHAN_BUFFER)
 	eventDelays := make([]EventDelay, 0)
@@ -47,7 +49,7 @@ func NewPattern(s string) *Pattern {
 		if evd, err := newEventDelay(tok); err == nil {
 			eventDelays = append(eventDelays, evd)
 		} else {
-			fmt.Printf("pattern: %d: %s", i, err)
+			println("pattern:", i, err)
 		}
 	}
 	p := &Pattern{eventIn, eventDelays}
@@ -76,7 +78,6 @@ func (p *Pattern) patternLoop() {
 				}
 			case "tick":
 				if target != nil {
-					wait--
 					if wait <= 0 {
 						target.Events() <- p.eventDelays[pos].ev
 						pos++
@@ -88,6 +89,7 @@ func (p *Pattern) patternLoop() {
 							pos, wait, target = 0, 0, nil
 						}
 					}
+					wait--
 				}
 			}
 		}
