@@ -1,6 +1,8 @@
+*.swp
 *.6
 *.8
 _obj/*
 pkg/_obj/*
 bin/*
+_bin/*
 cli/cli

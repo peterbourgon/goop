@@ -101,11 +101,36 @@ func (gc *generatorChannels) generatorLoop(sp *simpleParameters, vp valueProvide
 	}
 }
 
-// nextSineValue computes the next value in a simple sine wave as defined by
-// the hz value, with an offset into the waveform as specified by the phase.
-// The function updates phase.
-func nextSineValue(hz float32, phase *float32) float32 {
-	val := float32(math.Sin(float64(2.0 * *phase * math.Pi)))
+// A GeneratorFunction should define output for input [0 .. 1].
+// We scale that to the range [0 .. 0.25]. Call that scaled output 
+// 'F'. We generate a waveform based on phase [0 .. 1] as follows:
+//
+//    phase < 0.25: output = F
+//    phase < 0.50: output = F mirrored horizontally
+//    phase < 0.75: output = F mirrored vertically
+//    phase < 1.00: output = F mirrored horizontally + vertically
+//
+// (Thanks to Alexander Simmerl for the idea on this one.)
+type GeneratorFunction func(float32) float32
+
+func nextGeneratorFunctionValue(f GeneratorFunction, hz float32, phase *float32) float32 {
+	var val, p float32 = 0.0, 0.0
+	switch {
+	case *phase <= 0.25:
+		p = (*phase - 0.00) * 4
+		val = f(p) // no mirror
+	case *phase <= 0.50:
+		p = (*phase - 0.25) * 4
+		val = f(1 - p) // horizontal mirror
+	case *phase <= 0.75:
+		p = (*phase - 0.50) * 4
+		val = -f(p) // vertical mirror
+	case *phase <= 1.00:
+		p = (*phase - 0.75) * 4
+		val = -f(1 - p) // horizontal + vertical mirror
+	default:
+		panic("unreachable")
+	}
 	*phase += hz / SRATE
 	if *phase > 1.0 {
 		*phase -= 1.0
@@ -113,24 +138,20 @@ func nextSineValue(hz float32, phase *float32) float32 {
 	return val
 }
 
-// nextSawValue computes the next value in a simple saw wave.
-func nextSawValue(hz float32, phase *float32) float32 {
-	var val float32 = 0.0
-	switch {
-	case *phase < 0.25:
-		val = *phase * 4.0
-	case *phase < 0.75:
-		val = 1 - ((*phase - 0.25) * 4)
-	case *phase <= 1.0:
-		val = -1 + ((*phase - 0.75) * 4)
-	default:
-		panic("oh no")
+func sawGeneratorFunction(x float32) float32 {
+	return x
+}
+
+func sineGeneratorFunction(x float32) float32 {
+	// want only 1/4 sine over range [0..1], so need x/4
+	return float32(math.Sin(2 * math.Pi * float64(x/4)))
+}
+
+func squareGeneratorFunction(x float32) float32 {
+	if x < 0.5 {
+		return 1.0
 	}
-	*phase += hz / SRATE
-	if *phase > 1.0 {
-		*phase -= 1.0
-	}
-	return float32(val)
+	return 0.0
 }
 
 // A simpleGenerator is any generator which can provide audio data 
@@ -157,7 +178,7 @@ func NewSineGenerator() *SineGenerator {
 // nextValue for a SineGenerator will output a pure sine waveform at the
 // frequency described by the simpleParameter's hz parameter.
 func (g *SineGenerator) nextValue() float32 {
-	return nextSineValue(g.hz, &g.phase) * g.gain
+	return nextGeneratorFunctionValue(sineGeneratorFunction, g.hz, &g.phase) * g.gain
 }
 
 type SquareGenerator struct{ simpleGenerator }
@@ -171,10 +192,7 @@ func NewSquareGenerator() *SquareGenerator {
 // nextValue for a SquareGenerator will output a pleasantly buzzy square
 // waveform at the frequency described by the simpleParameter's hz parameter.
 func (g *SquareGenerator) nextValue() float32 {
-	if nextSineValue(g.hz, &g.phase) > 0.5 {
-		return g.gain
-	}
-	return 0.0
+	return nextGeneratorFunctionValue(squareGeneratorFunction, g.hz, &g.phase) * g.gain
 }
 
 type SawGenerator struct{ simpleGenerator }
@@ -188,7 +206,7 @@ func NewSawGenerator() *SawGenerator {
 // nextValue for a SineGenerator will output a sawtooth waveform at the
 // frequency described by the simpleParameter's hz parameter.
 func (g *SawGenerator) nextValue() float32 {
-	return nextSawValue(g.hz, &g.phase) * g.gain
+	return nextGeneratorFunctionValue(sawGeneratorFunction, g.hz, &g.phase) * g.gain
 }
 
 type WavGenerator struct {

@@ -158,7 +158,7 @@ func (e *GainLFO) processEvent(ev Event) {
 
 func (e *GainLFO) processAudio(buf []float32) {
 	for i, v := range buf {
-		raw := nextSineValue(e.hz, &e.phase)
+		raw := nextGeneratorFunctionValue(sineGeneratorFunction, e.hz, &e.phase)
 		mod := ((e.max - e.min) * raw) + e.min
 		buf[i] = mod * v
 	}
