@@ -265,6 +265,8 @@ func doInfo(args []string) {
 			what, details = "sine generator", fmt.Sprintf("%s", x)
 		case *goop.SquareGenerator:
 			what, details = "square generator", fmt.Sprintf("%s", x)
+		case *goop.SawGenerator:
+			what, details = "sawtooth generator", fmt.Sprintf("%s", x)
 		case *goop.GainLFO:
 			what, details = "gain LFO", fmt.Sprintf("%s", x)
 		case *goop.Delay:
