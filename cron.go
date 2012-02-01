@@ -9,9 +9,7 @@ type Cron struct {
 	eventIn chan Event
 }
 
-func (c *Cron) Events() chan<- Event {
-	return c.eventIn
-}
+func (c *Cron) Events() chan<- Event { return c.eventIn }
 
 func NewCron(delay int64, parser func(string) bool, cmd string) *Cron {
 	c := &Cron{parser, delay, cmd, make(chan Event, OTHER_CHAN_BUFFER)}

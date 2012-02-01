@@ -1,7 +1,6 @@
 package goop
 
 import (
-	"sync"
 	"time"
 )
 
@@ -9,44 +8,41 @@ type Clock struct {
 	eventBuf      chan TargetAndEvent
 	bpm           float32
 	eventIn       chan Event
-	tickReceivers map[string]EventReceiver
-	mtx           sync.Mutex
+	tickReceivers []EventReceiver
 }
 
 func NewClock() *Clock {
 	eb := make(chan TargetAndEvent, 10*OTHER_CHAN_BUFFER)
 	ei := make(chan Event, OTHER_CHAN_BUFFER)
-	tr := make(map[string]EventReceiver)
-	c := &Clock{eb, 60, ei, tr, sync.Mutex{}}
+	tr := make([]EventReceiver, 0)
+	c := &Clock{eb, 60, ei, tr}
 	go c.run()
 	return c
 }
 
-func (c *Clock) Events() chan<- Event {
-	return c.eventIn
-}
-
-func (c *Clock) Queue(tev TargetAndEvent) {
-	c.eventBuf <- tev
-}
+func (c *Clock) Events() chan<- Event { return c.eventIn }
 
 func (c *Clock) DeferredEvents() chan<- TargetAndEvent { return c.eventBuf }
 
-func (c *Clock) Register(name string, r EventReceiver) {
-	c.mtx.Lock()
-	defer c.mtx.Unlock()
-	c.tickReceivers[name] = r
+func (c *Clock) register(r EventReceiver) {
+	for _, existing := range c.tickReceivers {
+		if existing == r {
+			return
+		}
+	}
+	c.tickReceivers = append(c.tickReceivers, r)
 }
 
-func (c *Clock) Unregister(name string) {
-	c.mtx.Lock()
-	defer c.mtx.Unlock()
-	delete(c.tickReceivers, name)
+func (c *Clock) unregister(r EventReceiver) {
+	for i, existing := range c.tickReceivers {
+		if existing == r {
+			c.tickReceivers = append(c.tickReceivers[:i], c.tickReceivers[i+1:]...)
+			return
+		}
+	}
 }
 
 func (c *Clock) run() {
-	c.mtx.Lock()
-	defer c.mtx.Unlock()
 	for {
 		select {
 		case ev := <-c.eventIn:
@@ -55,14 +51,23 @@ func (c *Clock) run() {
 				c.bpm = ev.Val
 			case "kill":
 				return
+			case "register":
+				if r, ok := ev.Arg.(EventReceiver); ok {
+					c.register(r)
+				}
+			case "unregister":
+				if r, ok := ev.Arg.(EventReceiver); ok {
+					c.unregister(r)
+				}
 			}
 		default:
-			for name, r := range c.tickReceivers {
+			//println("clock ticking to", len(c.tickReceivers))
+			for i, r := range c.tickReceivers {
 				select {
 				case r.Events() <- Event{"tick", 0.0, nil}:
 					break
 				default:
-					println("tick receiver", name, "wasn't ready")
+					println("tick receiver", i, "wasn't ready")
 					break
 				}
 			}
@@ -76,9 +81,7 @@ func (c *Clock) run() {
 					}
 				}
 			}()
-			c.mtx.Unlock()
 			<-time.After(time.Duration(int64((60 / c.bpm) * 1e9)))
-			c.mtx.Lock()
 		}
 	}
 }

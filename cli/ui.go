@@ -129,6 +129,7 @@ func doAdd(args []string) {
 			return
 		}
 		c := goop.NewCron(delay64, uiParse, strings.Join(args[3:], " "))
+		CLOCK.Events() <- goop.Event{"register", 0.0, c}
 		add(args[1], c)
 	case "pattern":
 		if len(args) < 3 {
@@ -147,7 +148,7 @@ func add(name string, item interface{}) bool {
 		fmt.Printf("add: %s: %s\n", name, err)
 		return false
 	}
-	fmt.Printf("add: %s: OK\n", name)
+	fmt.Printf("add: %s: OK", name)
 	return true
 }
 
@@ -157,8 +158,17 @@ func doDel(args []string) {
 		return
 	}
 	name := args[0]
+	item, itemErr := NETWORK.Get(name)
+	if itemErr != nil {
+		fmt.Printf("del: %s: %s\n", name, itemErr)
+		return
+	}
+	if r, ok := item.(goop.EventReceiver); ok {
+		CLOCK.Events() <- goop.Event{"unregister", 0.0, r} // safe
+	}
 	if err := NETWORK.Del(name); err != nil {
 		fmt.Printf("del: %s: %s\n", name, err)
+		return
 	}
 	fmt.Printf("del: %s: OK\n", name)
 }
