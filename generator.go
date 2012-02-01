@@ -1,8 +1,8 @@
 package goop
 
 import (
-	"math"
 	"fmt"
+	"math"
 )
 
 // generatorChannels are designed to be embedded into Generators
@@ -146,10 +146,10 @@ func (g *simpleGenerator) String() string {
 }
 
 // thanks to #go-nuts skelterjohn for this construction idiom
-type SineGenerator struct { simpleGenerator }
+type SineGenerator struct{ simpleGenerator }
 
 func NewSineGenerator() *SineGenerator {
-	g := SineGenerator{ simpleGenerator{makeGeneratorChannels(), makeSimpleParameters()} }
+	g := SineGenerator{simpleGenerator{makeGeneratorChannels(), makeSimpleParameters()}}
 	go g.generatorLoop(&g.simpleParameters, &g)
 	return &g
 }
@@ -160,10 +160,10 @@ func (g *SineGenerator) nextValue() float32 {
 	return nextSineValue(g.hz, &g.phase) * g.gain
 }
 
-type SquareGenerator struct { simpleGenerator }
+type SquareGenerator struct{ simpleGenerator }
 
 func NewSquareGenerator() *SquareGenerator {
-	g := SquareGenerator{ simpleGenerator{makeGeneratorChannels(), makeSimpleParameters()} }
+	g := SquareGenerator{simpleGenerator{makeGeneratorChannels(), makeSimpleParameters()}}
 	go g.generatorLoop(&g.simpleParameters, &g)
 	return &g
 }
@@ -177,10 +177,10 @@ func (g *SquareGenerator) nextValue() float32 {
 	return 0.0
 }
 
-type SawGenerator struct { simpleGenerator }
+type SawGenerator struct{ simpleGenerator }
 
 func NewSawGenerator() *SawGenerator {
-	g := SawGenerator{ simpleGenerator{makeGeneratorChannels(), makeSimpleParameters()} }
+	g := SawGenerator{simpleGenerator{makeGeneratorChannels(), makeSimpleParameters()}}
 	go g.generatorLoop(&g.simpleParameters, &g)
 	return &g
 }
