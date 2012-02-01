@@ -141,14 +141,15 @@ type simpleGenerator struct {
 	simpleParameters
 }
 
-type SineGenerator simpleGenerator
-
-func (g *SineGenerator) String() string {
+func (g *simpleGenerator) String() string {
 	return fmt.Sprintf("%.2f hz, gain %.2f", g.hz, g.gain)
 }
 
+// thanks to #go-nuts skelterjohn for this construction idiom
+type SineGenerator struct { simpleGenerator }
+
 func NewSineGenerator() *SineGenerator {
-	g := SineGenerator{makeGeneratorChannels(), makeSimpleParameters()}
+	g := SineGenerator{ simpleGenerator{makeGeneratorChannels(), makeSimpleParameters()} }
 	go g.generatorLoop(&g.simpleParameters, &g)
 	return &g
 }
@@ -159,14 +160,10 @@ func (g *SineGenerator) nextValue() float32 {
 	return nextSineValue(g.hz, &g.phase) * g.gain
 }
 
-type SquareGenerator simpleGenerator
-
-func (g *SquareGenerator) String() string {
-	return fmt.Sprintf("%.2f hz, gain %.2f", g.hz, g.gain)
-}
+type SquareGenerator struct { simpleGenerator }
 
 func NewSquareGenerator() *SquareGenerator {
-	g := SquareGenerator{makeGeneratorChannels(), makeSimpleParameters()}
+	g := SquareGenerator{ simpleGenerator{makeGeneratorChannels(), makeSimpleParameters()} }
 	go g.generatorLoop(&g.simpleParameters, &g)
 	return &g
 }
@@ -180,14 +177,10 @@ func (g *SquareGenerator) nextValue() float32 {
 	return 0.0
 }
 
-type SawGenerator simpleGenerator
-
-func (g *SawGenerator) String() string {
-	return fmt.Sprintf("%.2f hz, gain %.2f", g.hz, g.gain)
-}
+type SawGenerator struct { simpleGenerator }
 
 func NewSawGenerator() *SawGenerator {
-	g := SawGenerator{makeGeneratorChannels(), makeSimpleParameters()}
+	g := SawGenerator{ simpleGenerator{makeGeneratorChannels(), makeSimpleParameters()} }
 	go g.generatorLoop(&g.simpleParameters, &g)
 	return &g
 }

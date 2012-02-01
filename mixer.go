@@ -28,6 +28,10 @@ type Mixer struct {
 	eventIn chan Event
 }
 
+func (m *Mixer) String() string {
+	return fmt.Sprintf("%d connections, gain %.2f", len(m.chans), m.gain)
+}
+
 // NewMixer returns a new Mixer, ready to use.
 func NewMixer() *Mixer {
 	mx := sync.Mutex{}
