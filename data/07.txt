@@ -8,7 +8,7 @@ add gainlfo l2
 connect b l2
 connect l2 mixer
 
-add pattern p1 keydown 440 0.1 / keydown 550 0.1 / keydown 660 0.1 / keydown 880 0.1 / keyup 0 0.1
+add pattern p1 keydown 440 1 / keydown 550 1 / keydown 660 1 / keydown 880 1 / keyup 0 2
 
 # every 1 firepattern p1 a
 # every 1 firepattern p1 b
