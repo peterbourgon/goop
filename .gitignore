@@ -3,5 +3,4 @@
 _obj/*
 pkg/_obj/*
 bin/*
-cmd/bin/*
-goop
+cli/cli

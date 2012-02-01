@@ -147,7 +147,7 @@ func add(name string, item interface{}) bool {
 		fmt.Printf("add: %s: %s\n", name, err)
 		return false
 	}
-	fmt.Printf("add: %s: OK", name)
+	fmt.Printf("add: %s: OK\n", name)
 	return true
 }
 
