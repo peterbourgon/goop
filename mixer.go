@@ -1,4 +1,4 @@
-package main
+package goop
 
 import (
 	"code.google.com/p/portaudio-go/portaudio"
@@ -17,15 +17,6 @@ const (
 	OTHER_CHAN_BUFFER = 10
 )
 
-var (
-	MIXER *Mixer
-)
-
-func init() {
-	MIXER = NewMixer()
-	go MIXER.Play()
-}
-
 // A Mixer multiplexes audio data channels from AudioSenders into a single
 // stream, which it passes to the audio subsystem.
 type Mixer struct {
@@ -35,6 +26,10 @@ type Mixer struct {
 	on      bool
 	chans   []<-chan []float32
 	eventIn chan Event
+}
+
+func (m *Mixer) String() string {
+	return fmt.Sprintf("%d connections, gain %.2f", len(m.chans), m.gain)
 }
 
 // NewMixer returns a new Mixer, ready to use.
@@ -47,6 +42,7 @@ func NewMixer() *Mixer {
 	m := Mixer{mtx: mx, gain: ga, on: on, chans: ch, eventIn: ei}
 	m.cnd = sync.NewCond(&m.mtx)
 	go m.eventLoop()
+	go m.Play()
 	return &m
 }
 
@@ -56,13 +52,13 @@ func (m *Mixer) eventLoop() {
 	for {
 		select {
 		case ev := <-m.eventIn:
-			switch ev.name {
+			switch ev.Name {
 			case "kill":
 				m.DropAll()
 				m.Stop()
 				return
 			case "receivefrom":
-				if sender, ok := ev.arg.(AudioSender); ok {
+				if sender, ok := ev.Arg.(AudioSender); ok {
 					func() {
 						m.mtx.Lock()
 						defer m.mtx.Unlock()

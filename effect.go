@@ -1,6 +1,8 @@
-package main
+package goop
 
-import ()
+import (
+	"fmt"
+)
 
 // effectChannels are designed to be embedded into simple effects,
 // which should accept exactly one input audio channel, manipulate it
@@ -76,6 +78,7 @@ func (ec *effectChannels) Reset() {
 func (ec *effectChannels) effectLoop(ep eventProcessor, ap audioProcessor) {
 	var buf []float32 = nil
 	for {
+		// as described above: buffer exactly 1 audio buffer locally
 		var ok bool = false
 		if ec.audioIn != nil && buf == nil {
 			if buf, ok = <-ec.audioIn; ok {
@@ -86,9 +89,9 @@ func (ec *effectChannels) effectLoop(ep eventProcessor, ap audioProcessor) {
 		}
 		select {
 		case ev := <-ec.eventIn:
-			switch ev.name {
+			switch ev.Name {
 			case "receivefrom":
-				if sender, ok := ev.arg.(AudioSender); ok {
+				if sender, ok := ev.Arg.(AudioSender); ok {
 					ec.audioIn = sender.AudioOut()
 				}
 			case "disconnect":
@@ -106,7 +109,7 @@ func (ec *effectChannels) effectLoop(ep eventProcessor, ap audioProcessor) {
 }
 
 // The eventProcessor interface is designed to be implemented by concrete
-// effects. The (initial) effectChannels goroutine, which is responsible for
+// Effects. The (initial) effectChannels goroutine, which is responsible for
 // (among other things) processing a shared sub-set of Event types directly,
 // will pass off all non-handled Event types to this function.
 type eventProcessor interface {
@@ -114,13 +117,13 @@ type eventProcessor interface {
 }
 
 // The audioProcessor interface is designed to be implemented by concrete
-// effects. The processAudio method should manipulate the passed audio
+// Effects. The processAudio method should manipulate the passed audio
 // buffer in-place.
 type audioProcessor interface {
 	processAudio(buf []float32)
 }
 
-// The GainLFO is an effect which cycles the gain of the audio signal
+// The GainLFO is an Effect which cycles the gain of the audio signal
 // from min to max at a rate of hz.
 type GainLFO struct {
 	effectChannels
@@ -128,6 +131,10 @@ type GainLFO struct {
 	max   float32
 	hz    float32
 	phase float32
+}
+
+func (e *GainLFO) String() string {
+	return fmt.Sprintf("%.2f-%.2f @ %.2f hz", e.min, e.max, e.hz)
 }
 
 func NewGainLFO() *GainLFO {
@@ -139,25 +146,25 @@ func NewGainLFO() *GainLFO {
 
 // GainLFO's processEvent manages changes to min, max and hz values.
 func (e *GainLFO) processEvent(ev Event) {
-	switch ev.name {
+	switch ev.Name {
 	case "min":
-		e.min = ev.val
+		e.min = ev.Val
 	case "max":
-		e.max = ev.val
+		e.max = ev.Val
 	case "hz":
-		e.hz = ev.val
+		e.hz = ev.Val
 	}
 }
 
 func (e *GainLFO) processAudio(buf []float32) {
 	for i, v := range buf {
-		raw := nextSineValue(e.hz, &e.phase)
+		raw := nextGeneratorFunctionValue(sineGeneratorFunction, e.hz, &e.phase)
 		mod := ((e.max - e.min) * raw) + e.min
 		buf[i] = mod * v
 	}
 }
 
-// The Delay is an effect which buffers incoming audio data for (approximately)
+// The Delay is an Effect which buffers incoming audio data for (approximately)
 // delay seconds before sending it out the outgoing audio channel.
 type Delay struct {
 	effectChannels
@@ -174,7 +181,7 @@ func NewDelay() *Delay {
 }
 
 // resetDelay takes a new delay parameter, and resets the internal state of
-// the Delay effect so that the new delay is applied.
+// the Delay Effect so that the new delay is applied.
 func (e *Delay) resetDelay(d float32) {
 	e.delay = d
 	depth := int64((SRATE * e.delay) / BUFSZ)
@@ -183,9 +190,9 @@ func (e *Delay) resetDelay(d float32) {
 
 // Delay's processEvent manages changes to the delay parameter.
 func (e *Delay) processEvent(ev Event) {
-	switch ev.name {
+	switch ev.Name {
 	case "delay":
-		e.resetDelay(ev.val)
+		e.resetDelay(ev.Val)
 	}
 }
 
