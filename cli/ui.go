@@ -1,6 +1,7 @@
 package main
 
 import (
+	"errors"
 	"fmt"
 	"github.com/bobappleyard/readline"
 	"goop"
@@ -49,18 +50,26 @@ func uiParse(s string) bool {
 		switch cmd {
 		case "quit":
 			return false
-		case "add":
+		case "add", "a":
 			doAdd(args)
-		case "del", "delete":
+		case "delete", "del":
 			doDel(args)
 		case "every":
 			doEvery(args) // just an alias for "add cron <autogen ID> ..."
-		case "connect":
+		case "connect", "conn", "con", "c":
 			doConnect(args)
-		case "disconnect":
+		case "disconnect", "disconn", "discon", "dis", "d":
 			doDisconnect(args)
-		case "fire":
+		case "register", "reg", "r":
+			doRegister(args)
+		case "unregister", "unreg", "un", "u":
+			doUnregister(args)
+		case "fire", "f":
 			doFire(args)
+		case "push", "pu":
+			doPush(args)
+		case "pop", "po":
+			doPop(args)
 		case "stopall":
 			doStopall(args)
 		case "sleep":
@@ -116,6 +125,8 @@ func doAdd(args []string) {
 		add(args[1], goop.NewGainLFO())
 	case "delay":
 		add(args[1], goop.NewDelay())
+	case "sequencer", "seq":
+		add(args[1], goop.NewSequencer())
 	case "cron":
 		if len(args) < 4 {
 			fmt.Printf("add cron <name> <delay> <cmd...>\n")
@@ -191,6 +202,64 @@ func doDisconnect(args []string) {
 	NETWORK.Disconnect(args[0])
 }
 
+func toEventReceiver(name string) (goop.EventReceiver, error) {
+	item, itemErr := NETWORK.Get(name)
+	if itemErr != nil {
+		return nil, errors.New(fmt.Sprintf("%s: %s", name, itemErr))
+	}
+	r, ok := item.(goop.EventReceiver)
+	if !ok {
+		return nil, errors.New(fmt.Sprintf("%s: not an Event Receiver", name))
+	}
+	return r, nil
+}
+
+// Register is just like Connect, except for Events rather than audio data.
+func doRegister(args []string) {
+	if len(args) < 2 {
+		fmt.Printf("register <from> <to>\n")
+		return
+	}
+	from, to := args[0], args[1]
+	fromReceiver, fromReceiverErr := toEventReceiver(from)
+	if fromReceiverErr != nil {
+		fmt.Printf("register: %s\n", fromReceiverErr)
+		return
+	}
+	toReceiver, toReceiverErr := toEventReceiver(to)
+	if toReceiverErr != nil {
+		fmt.Printf("register: %s\n", toReceiverErr)
+		return
+	}
+	ev := goop.Event{"register", 0.0, toReceiver}
+	fromReceiver.Events() <- ev
+}
+
+func doUnregister(args []string) {
+	if len(args) < 1 {
+		fmt.Printf("unregister <from> [<to>]\n")
+		return
+	}
+	from := args[0]
+	fromReceiver, fromReceiverErr := toEventReceiver(from)
+	if fromReceiverErr != nil {
+		fmt.Printf("register: %s\n", fromReceiverErr)
+		return
+	}
+	var r goop.EventReceiver = nil
+	if len(args) >= 2 {
+		to := args[1]
+		toReceiver, toReceiverErr := toEventReceiver(to)
+		if toReceiverErr != nil {
+			fmt.Printf("register: %s\n", toReceiverErr)
+			return
+		}
+		r = toReceiver
+	}
+	ev := goop.Event{"unregister", 0.0, r}
+	fromReceiver.Events() <- ev
+}
+
 func doFire(args []string) {
 	if len(args) < 3 {
 		fmt.Printf("fire <name> <val> <where>\n")
@@ -205,6 +274,14 @@ func doFire(args []string) {
 	receiverName := args[2]
 	ev := goop.Event{name, float32(val64), nil}
 	NETWORK.Fire(receiverName, ev, goop.Immediately)
+}
+
+func doPush(args []string) {
+	
+}
+
+func doPop(args []string) {
+	
 }
 
 func doStopall(args []string) {
