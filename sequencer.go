@@ -55,9 +55,11 @@ func (s *Sequencer) sequenceLoop() {
 			switch ev.Name {
 			case "kill":
 				return
-			case "reset":
-				s.pos = 0
+			case "disconnect":
 				s.receivers = make([]EventReceiver, 0)
+			case "clear":
+				s.pos = 0
+				s.slots = make([]Slot, 0)
 			case "register":
 				if r, ok := ev.Arg.(EventReceiver); ok {
 					s.register(r)	
@@ -65,6 +67,14 @@ func (s *Sequencer) sequenceLoop() {
 			case "unregister":
 				if r, ok := ev.Arg.(EventReceiver); ok {
 					s.unregister(r)
+				}
+			case "push":
+				if sl, ok := ev.Arg.(Slot); ok {
+					s.slots = append(s.slots, sl)
+				}
+			case "pop":
+				if len(s.slots) > 0 {
+					s.slots = s.slots[:len(s.slots)-1]
 				}
 			case "tick":
 				if len(s.slots) > 0 {
