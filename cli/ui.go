@@ -61,8 +61,6 @@ func uiParse(s string) bool {
 			doDisconnect(args)
 		case "fire":
 			doFire(args)
-		case "firepattern", "firep", "fp":
-			doFirePattern(args)
 		case "stopall":
 			doStopall(args)
 		case "sleep":
@@ -131,14 +129,6 @@ func doAdd(args []string) {
 		c := goop.NewCron(delay64, uiParse, strings.Join(args[3:], " "))
 		CLOCK.Events() <- goop.Event{"register", 0.0, c}
 		add(args[1], c)
-	case "pattern":
-		if len(args) < 3 {
-			fmt.Printf("add pattern <name> <event-delay> / ...\n")
-			return
-		}
-		p := goop.NewPattern(strings.Join(args[2:], " "))
-		CLOCK.Events() <- goop.Event{"register", 0.0, p}
-		add(args[1], p)
 	default:
 		fmt.Printf("add: what?\n")
 	}
@@ -217,21 +207,6 @@ func doFire(args []string) {
 	NETWORK.Fire(receiverName, ev, goop.Immediately)
 }
 
-func doFirePattern(args []string) {
-	if len(args) < 2 {
-		fmt.Printf("firepattern <name> <target>\n")
-		return
-	}
-	patternName, receiverName := args[0], args[1]
-	receiverItem, receiverItemErr := NETWORK.Get(receiverName)
-	if receiverItemErr != nil {
-		fmt.Printf("firepattern: %s: %s\n", receiverItemErr)
-		return
-	}
-	ev := goop.Event{"fire", 0.0, receiverItem}
-	NETWORK.Fire(patternName, ev, goop.Deferred)
-}
-
 func doStopall(args []string) {
 	MIXER.DropAll()
 }
@@ -273,8 +248,6 @@ func doInfo(args []string) {
 			what, details = "delay", fmt.Sprintf("%s", x)
 		case *goop.Cron:
 			what, details = "cron", fmt.Sprintf("%s", x)
-		case *goop.Pattern:
-			what, details = "pattern", fmt.Sprintf("%s", x)
 		}
 		msg := fmt.Sprintf(" %s - %s", name, what)
 		if details != "" {
