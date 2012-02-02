@@ -42,7 +42,7 @@ func (s *Sequencer) register(r EventReceiver) {
 func (s *Sequencer) unregister(r EventReceiver) {
 	for i, existing := range s.receivers {
 		if r == existing {
-			s.receivers = append(s.receivers[:i], s.receivers[:i+1]...)
+			s.receivers = append(s.receivers[:i], s.receivers[i+1:]...)
 			return	
 		}
 	}

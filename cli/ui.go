@@ -126,7 +126,9 @@ func doAdd(args []string) {
 	case "delay":
 		add(args[1], goop.NewDelay())
 	case "sequencer", "seq":
-		add(args[1], goop.NewSequencer())
+		s := goop.NewSequencer()
+		CLOCK.Events() <- goop.Event{"register", 0.0, s}
+		add(args[1], s)
 	case "cron":
 		if len(args) < 4 {
 			fmt.Printf("add cron <name> <delay> <cmd...>\n")
@@ -146,6 +148,9 @@ func doAdd(args []string) {
 }
 
 func add(name string, item interface{}) bool {
+	if item == nil {
+		panic("add nil item!")
+	}
 	if err := NETWORK.Add(name, item); err != nil {
 		fmt.Printf("add: %s: %s\n", name, err)
 		return false
@@ -217,47 +222,37 @@ func toEventReceiver(name string) (goop.EventReceiver, error) {
 // Register is just like Connect, except for Events rather than audio data.
 func doRegister(args []string) {
 	if len(args) < 2 {
-		fmt.Printf("register <from> <to>\n")
+		fmt.Printf("register <src> <tgt>\n")
 		return
 	}
-	from, to := args[0], args[1]
-	fromReceiver, fromReceiverErr := toEventReceiver(from)
-	if fromReceiverErr != nil {
-		fmt.Printf("register: %s\n", fromReceiverErr)
+	src, dst := args[0], args[1]
+	dstReceiver, dstReceiverErr := toEventReceiver(dst)
+	if dstReceiverErr != nil {
+		fmt.Printf("register: %s: %s\n", dst, dstReceiverErr)
 		return
 	}
-	toReceiver, toReceiverErr := toEventReceiver(to)
-	if toReceiverErr != nil {
-		fmt.Printf("register: %s\n", toReceiverErr)
-		return
-	}
-	ev := goop.Event{"register", 0.0, toReceiver}
-	fromReceiver.Events() <- ev
+	ev := goop.Event{"register", 0.0, dstReceiver}
+	NETWORK.Fire(src, ev, goop.Immediately)
 }
 
 func doUnregister(args []string) {
 	if len(args) < 1 {
-		fmt.Printf("unregister <from> [<to>]\n")
+		fmt.Printf("unregister <src> [<tgt>]\n")
 		return
 	}
-	from := args[0]
-	fromReceiver, fromReceiverErr := toEventReceiver(from)
-	if fromReceiverErr != nil {
-		fmt.Printf("register: %s\n", fromReceiverErr)
-		return
-	}
-	var r goop.EventReceiver = nil
+	src := args[0]
 	if len(args) >= 2 {
-		to := args[1]
-		toReceiver, toReceiverErr := toEventReceiver(to)
-		if toReceiverErr != nil {
-			fmt.Printf("register: %s\n", toReceiverErr)
+		dst := args[1]
+		dstReceiver, dstReceiverErr := toEventReceiver(dst)
+		if dstReceiverErr != nil {
+			fmt.Printf("register: %s: %s\n", dst, dstReceiverErr)
 			return
 		}
-		r = toReceiver
+		ev := goop.Event{"unregister", 0.0, dstReceiver}
+		NETWORK.Fire(src, ev, goop.Immediately)
+	} else {
+		NETWORK.Fire(src, goop.Event{"disconnect", 0.0, nil}, goop.Immediately)
 	}
-	ev := goop.Event{"unregister", 0.0, r}
-	fromReceiver.Events() <- ev
 }
 
 func doFire(args []string) {
@@ -273,15 +268,49 @@ func doFire(args []string) {
 	}
 	receiverName := args[2]
 	ev := goop.Event{name, float32(val64), nil}
-	NETWORK.Fire(receiverName, ev, goop.Immediately)
+	NETWORK.Fire(receiverName, ev, goop.Deferred)
+}
+
+func stringToEvent(s string) (goop.Event, error) {
+	// <name> <value>
+	toks := strings.Split(strings.TrimSpace(s), " ")
+	if len(toks) != 2 {
+		return goop.Event{}, errors.New("invalid Event format")
+	}
+	val64, convertErr := strconv.ParseFloat(toks[1], 32)
+	if convertErr != nil {
+		return goop.Event{}, convertErr
+	}
+	return goop.Event{toks[0], float32(val64), nil}, nil
 }
 
 func doPush(args []string) {
-	
+	if len(args) < 3 {
+		fmt.Printf("push <sequencer> <name> <val> [ + <name> <val> ... ]\n")
+		return
+	}
+	target, args := args[0], args[1:]
+	eventStrings := strings.Split(strings.Join(args, " "), "+")
+	slot := goop.Slot{}
+	for _, eventString := range eventStrings {
+		ev, err := stringToEvent(eventString)
+		if err != nil {
+			fmt.Printf("push: %s: %s\n", eventString, err)
+			return
+		}
+		slot = append(slot, ev)
+	}
+	ev := goop.Event{"push", 0.0, slot}
+	NETWORK.Fire(target, ev, goop.Immediately)
+	fmt.Printf("push: %d into next slot of %s\n", len(slot), target)
 }
 
 func doPop(args []string) {
-	
+	if len(args) < 1 {
+		fmt.Printf("pop <sequencer>\n")
+		return
+	}
+	NETWORK.Fire(args[0], goop.Event{"pop", 0.0, nil}, goop.Immediately)
 }
 
 func doStopall(args []string) {
@@ -325,6 +354,8 @@ func doInfo(args []string) {
 			what, details = "delay", fmt.Sprintf("%s", x)
 		case *goop.Cron:
 			what, details = "cron", fmt.Sprintf("%s", x)
+		default:
+			what, details = "unknown", fmt.Sprintf("%s", x)
 		}
 		msg := fmt.Sprintf(" %s - %s", name, what)
 		if details != "" {
