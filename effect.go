@@ -174,25 +174,25 @@ type Delay struct {
 
 func NewDelay() *Delay {
 	ec := makeEffectChannels()
-	e := &Delay{ec, nil, 0.0}
-	e.resetDelay(1.0)
+	initialDelay := float32(1.0) // sec
+	depth := int64((SRATE * initialDelay) / BUFSZ)
+	hi := make(chan []float32, depth)
+	e := &Delay{ec, hi, initialDelay}
 	go e.effectLoop(e, e)
 	return e
 }
 
-// resetDelay takes a new delay parameter, and resets the internal state of
-// the Delay Effect so that the new delay is applied.
-func (e *Delay) resetDelay(d float32) {
-	e.delay = d
-	depth := int64((SRATE * e.delay) / BUFSZ)
-	e.history = make(chan []float32, depth)
+func (e *Delay) String() string {
+	return fmt.Sprintf("%.2f sec", e.delay)
 }
 
 // Delay's processEvent manages changes to the delay parameter.
 func (e *Delay) processEvent(ev Event) {
 	switch ev.Name {
 	case "delay":
-		e.resetDelay(ev.Val)
+		e.delay = ev.Val
+		depth := int64((SRATE * e.delay) / BUFSZ)
+		e.history = make(chan []float32, depth)
 	}
 }
 
@@ -208,5 +208,32 @@ func (e *Delay) processAudio(buf []float32) {
 		outBuf := <-e.history
 		e.history <- buf
 		buf = outBuf
+	}
+}
+
+// An Echo is just a Delay with different processAudio logic.
+type Echo struct { Delay }
+
+func NewEcho() *Echo {
+	ec := makeEffectChannels()
+	initialDelay := float32(1.0) // sec
+	depth := int64((SRATE * initialDelay) / BUFSZ)
+	hi := make(chan []float32, depth)
+	e := &Echo{Delay{ec, hi, initialDelay}}
+	go e.effectLoop(e, e)
+	return e
+}
+
+func (e *Echo) processAudio(buf []float32) {
+	select {
+	case e.history <- buf:
+		// not yet full, so we shouldn't output anything
+		break
+	default:
+		outBuf := <-e.history // pop
+		e.history <- buf // push
+		for i, val := range buf {
+			buf[i] = val + (outBuf[i] * 0.5)
+		}
 	}
 }

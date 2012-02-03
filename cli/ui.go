@@ -65,11 +65,15 @@ func uiParse(s string) bool {
 		case "unregister", "unreg", "un", "u":
 			doUnregister(args)
 		case "fire", "f":
-			doFire(args)
+			doFire(args, goop.Deferred)
+		case "fire!", "f!":
+			doFire(args, goop.Immediately)
 		case "push", "pu":
 			doPush(args)
 		case "pop", "po":
 			doPop(args)
+		case "ramp":
+			doRamp(args)
 		case "stopall":
 			doStopall(args)
 		case "sleep":
@@ -125,6 +129,8 @@ func doAdd(args []string) {
 		add(args[1], goop.NewGainLFO())
 	case "delay":
 		add(args[1], goop.NewDelay())
+	case "echo":
+		add(args[1], goop.NewEcho())
 	case "sequencer", "seq":
 		s := goop.NewSequencer()
 		CLOCK.Events() <- goop.Event{"register", 0.0, s}
@@ -255,7 +261,7 @@ func doUnregister(args []string) {
 	}
 }
 
-func doFire(args []string) {
+func doFire(args []string, when int) {
 	if len(args) < 3 {
 		fmt.Printf("fire <name> <val> <where>\n")
 		return
@@ -268,7 +274,7 @@ func doFire(args []string) {
 	}
 	receiverName := args[2]
 	ev := goop.Event{name, float32(val64), nil}
-	NETWORK.Fire(receiverName, ev, goop.Deferred)
+	NETWORK.Fire(receiverName, ev, when)
 }
 
 func stringToEvent(s string) (goop.Event, error) {
@@ -311,6 +317,51 @@ func doPop(args []string) {
 		return
 	}
 	NETWORK.Fire(args[0], goop.Event{"pop", 0.0, nil}, goop.Immediately)
+}
+
+func doRamp(args []string) {
+	if len(args) < 5 {
+		fmt.Printf("ramp <target> <eventname> <begin val> <end val> <sec> [<divisions>]\n")
+		return
+	}
+	target, eventName := args[0], args[1]
+	_, rErr := toEventReceiver(target)
+	if rErr != nil {
+		fmt.Printf("ramp: %s: %s\n", target, rErr)
+		return
+	}
+	begin64, beginErr := strconv.ParseFloat(args[2], 32)
+	if beginErr != nil {
+		fmt.Printf("ramp: begin: %s\n", beginErr)
+		return
+	}
+	end64, endErr := strconv.ParseFloat(args[3], 32)
+	if endErr != nil {
+		fmt.Printf("ramp: end: %s\n", endErr)
+		return
+	}
+	sec64, secErr := strconv.ParseFloat(args[4], 32)
+	if secErr != nil {
+		fmt.Printf("ramp: duration: %s\n", secErr)
+		return
+	}
+	div := 100
+	if len(args) >= 6 {
+		divTry, divErr := strconv.ParseInt(args[5], 10, 64)
+		if divErr != nil {
+			fmt.Printf("ramp: divisions: %s\n", divErr)
+		}
+		div = int(divTry)
+	}
+	go func() {
+		for i := 0; i < div+1; i++ {
+			thisVal := float32(begin64 + (float64(i) * ((end64 - begin64) / float64(div))))
+			ev := goop.Event{eventName, thisVal, nil}
+			NETWORK.Fire(target, ev, goop.Immediately)
+			<-time.After(time.Duration(sec64 / float64(div) * 1e9))
+		}
+	}()
+	fmt.Printf("ramping %s %s from %.2f to %.2f over %.2fs in %d steps\n", target, eventName, begin64, end64, sec64, div)
 }
 
 func doStopall(args []string) {
