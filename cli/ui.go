@@ -403,8 +403,12 @@ func doInfo(args []string) {
 			what, details = "gain LFO", fmt.Sprintf("%s", x)
 		case *goop.Delay:
 			what, details = "delay", fmt.Sprintf("%s", x)
+		case *goop.Echo:
+			what, details = "echo", fmt.Sprintf("%s", x)
 		case *goop.Cron:
 			what, details = "cron", fmt.Sprintf("%s", x)
+		case *goop.Sequencer:
+			what, details = "sequencer", fmt.Sprintf("%s", x)
 		default:
 			what, details = "unknown", fmt.Sprintf("%s", x)
 		}

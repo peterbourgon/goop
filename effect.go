@@ -232,6 +232,9 @@ func (e *Echo) processAudio(buf []float32) {
 	default:
 		outBuf := <-e.history // pop
 		e.history <- buf // push
+		if len(buf) != len(outBuf) {
+			break
+		}
 		for i, val := range buf {
 			buf[i] = val + (outBuf[i] * 0.5)
 		}
