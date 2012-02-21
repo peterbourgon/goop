@@ -3,7 +3,6 @@ package goop
 import (
 	"bufio"
 	"encoding/binary"
-	"errors"
 	"fmt"
 	"os"
 )
@@ -34,7 +33,7 @@ func ReadWavData(file string) (WavData, error) {
 	// read file to Reader
 	ftotal, err := os.OpenFile(file, os.O_RDONLY, 0)
 	if err != nil {
-		return WavData{}, errors.New(fmt.Sprintf("ReadWavData: %s", err))
+		return WavData{}, fmt.Errorf("ReadWavData: %s", err)
 	}
 	defer ftotal.Close()
 	f := bufio.NewReader(ftotal)
