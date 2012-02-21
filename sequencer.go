@@ -43,7 +43,7 @@ func (s *Sequencer) unregister(r EventReceiver) {
 	for i, existing := range s.receivers {
 		if r == existing {
 			s.receivers = append(s.receivers[:i], s.receivers[i+1:]...)
-			return	
+			return
 		}
 	}
 }
@@ -62,7 +62,7 @@ func (s *Sequencer) sequenceLoop() {
 				s.slots = make([]Slot, 0)
 			case "register":
 				if r, ok := ev.Arg.(EventReceiver); ok {
-					s.register(r)	
+					s.register(r)
 				}
 			case "unregister":
 				if r, ok := ev.Arg.(EventReceiver); ok {

@@ -212,7 +212,7 @@ func (e *Delay) processAudio(buf []float32) {
 }
 
 // An Echo is just a Delay with different processAudio logic.
-type Echo struct { Delay }
+type Echo struct{ Delay }
 
 func NewEcho() *Echo {
 	ec := makeEffectChannels()
@@ -231,7 +231,7 @@ func (e *Echo) processAudio(buf []float32) {
 		break
 	default:
 		outBuf := <-e.history // pop
-		e.history <- buf // push
+		e.history <- buf      // push
 		if len(buf) != len(outBuf) {
 			break
 		}
