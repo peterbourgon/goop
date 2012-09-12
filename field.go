@@ -43,11 +43,13 @@ func (f Field) Delete(name string) error {
 		}
 	}
 
+	n.Events() <- KillEvent()
 	delete(f, name)
 	return nil
 }
 
 func (f Field) Connect(src, dst string) error {
+	D("Connect(%s, %s)", src, dst)
 	parent, err := f.Get(src)
 	if err != nil {
 		return err
@@ -62,7 +64,9 @@ func (f Field) Connect(src, dst string) error {
 		return fmt.Errorf("cycle detected")
 	}
 
+	D("ConnectEvent to [%v]: Arg=[%v]", parent, child)
 	parent.Events() <- ConnectEvent(child)
+	D("ConnectionEvent to [%v]: Arg=[%v]", child, parent)
 	child.Events() <- ConnectionEvent(parent)
 
 	return nil
@@ -91,6 +95,10 @@ func (f Field) Disconnect(src, dst string) error {
 	return nil
 }
 
+//
+//
+//
+
 type Node interface {
 	Name() string
 	Parents() []Node
@@ -109,3 +117,56 @@ func reachable(n Node, name string) bool {
 	}
 	return false
 }
+
+// A nodeName may be embedded into any type to satisfy
+// the Name() method of the Node interface.
+type nodeName string
+
+func (nn nodeName) Name() string { return string(nn) }
+
+// singleParent may be embedded into any type to satisfy
+// the Parents() method of the Node interface, with arity=1.
+type singleParent struct{ Node }
+
+func (sp singleParent) Parents() []Node { return []Node{sp} }
+
+// singleChild may be embedded into any type to satisfy
+// the Children() method of the Node interface, with arity=1.
+type singleChild struct{ Node }
+
+func (sc singleChild) Children() []Node { return []Node{sc} }
+
+// singleAncestry combines singleParent + singleChild.
+type singleAncestry struct {
+	singleParent
+	singleChild
+}
+
+// multipleParents may be embedded into any type to satisfy
+// the Parents() method of the Node interface, with arity=N.
+type multipleParents []Node
+
+func (mp multipleParents) Parents() []Node { return mp }
+
+func (mp multipleParents) Add(n Node) { mp = append(mp, n) }
+
+func (mp multipleParents) Delete(name string) {
+	for i, n := range mp {
+		if n.Name() == name {
+			mp = append(mp[:i], mp[i+1:]...)
+			return
+		}
+	}
+}
+
+// noParents may be embedded into any type to satisfy
+// the Parents() method of the Node interface, with arity=0.
+type noParents struct{}
+
+func (np noParents) Parents() []Node { return []Node{} }
+
+// noChildren may be embedded into any type to satisfy
+// the Children() method of the Node interface, with arity=0.
+type noChildren struct{}
+
+func (nc noChildren) Children() []Node { return []Node{} }

@@ -18,7 +18,9 @@ func main() {
 		panic(err)
 	}
 	o := StdOutput{}
-	p := NewFieldParser(NewField(), o)
+	f := NewField()
+	f.Add(NewMixer())
+	p := NewFieldParser(f, o)
 	REPL(i, p, o)
 }
 
