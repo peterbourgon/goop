@@ -9,8 +9,9 @@ import (
 // A Mixer multiplexes audio data channels from AudioSenders into a single
 // stream, which it passes to the audio subsystem.
 type Mixer struct {
-	multipleParents
-	noChildren
+	nodeName
+	*multipleParents
+	//noChildren
 
 	gain    float32
 	on      bool
@@ -22,12 +23,25 @@ type Mixer struct {
 }
 
 func (m *Mixer) String() string {
-	return fmt.Sprintf("Mixer: %d connections, gain %.2f", len(m.chans), m.gain)
+	return fmt.Sprintf(
+		"[Mixer: AudioChans=%d Parents=%v Children=%v]",
+		len(m.chans),
+		m.Parents(),
+		m.Children(),
+	)
+}
+
+func (m *Mixer) Children() []Node {
+	D("Mixer Children() is called")
+	return []Node{}
 }
 
 // NewMixer returns a new Mixer, ready to use.
 func NewMixer() *Mixer {
 	m := &Mixer{
+		nodeName:        "mixer",
+		multipleParents: newMultipleParents(),
+
 		gain:    0.1,
 		on:      false,
 		chans:   []<-chan []float32{},
@@ -39,9 +53,6 @@ func NewMixer() *Mixer {
 	go m.Play()
 	return m
 }
-
-// Name satisfies the Name() method in the Node interface.
-func (m *Mixer) Name() string { return "mixer" }
 
 // Events satisfies the Events() method in the Node interface.
 func (m *Mixer) Events() chan<- Event { return m.eventIn }
@@ -57,21 +68,29 @@ func (m *Mixer) eventLoop() {
 				m.Stop()
 				return
 
+			case Connect, Disconnect:
+				D("Mixer got ignored %s Event", ev.Type)
+				break
+
 			case Connection:
 				D("Mixer got connection: %v", ev.Arg)
 				sender, senderOk := ev.Arg.(AudioSender)
 				if !senderOk {
+					D("Mixer's connection was not an AudioSender")
 					return
 				}
 				node, nodeOk := ev.Arg.(Node)
 				if !nodeOk {
+					D("Mixer's connection was not a Node")
 					return
 				}
 				func() {
 					m.Lock()
 					defer m.Unlock()
 					m.chans = append(m.chans, sender.AudioOut())
-					m.multipleParents.Add(node)
+					m.multipleParents.AddParent(node)
+					D("Mixer added a chan and a parent")
+					D("Mixer Chans=%d Parents=%d", len(m.chans), len(m.multipleParents.Parents()))
 				}()
 
 			case Disconnection:
@@ -96,7 +115,7 @@ func (m *Mixer) eventLoop() {
 				func() {
 					m.Lock()
 					defer m.Unlock()
-					m.multipleParents.Delete(node.Name())
+					m.multipleParents.DeleteParent(node.Name())
 				}()
 
 			}
@@ -111,7 +130,7 @@ func (m *Mixer) dropAll() {
 	m.Lock()
 	defer m.Unlock()
 	m.chans = make([]<-chan []float32, 0)
-	m.multipleParents = multipleParents{}
+	m.multipleParents = newMultipleParents()
 }
 
 // Play is a blocking call which initializes the audio subsystem. It should

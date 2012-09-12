@@ -60,13 +60,11 @@ func (f Field) Connect(src, dst string) error {
 		return err
 	}
 
-	if reachable(child, src) {
+	if reachable(child, parent) {
 		return fmt.Errorf("cycle detected")
 	}
 
-	D("ConnectEvent to [%v]: Arg=[%v]", parent, child)
 	parent.Events() <- ConnectEvent(child)
-	D("ConnectionEvent to [%v]: Arg=[%v]", child, parent)
 	child.Events() <- ConnectionEvent(parent)
 
 	return nil
@@ -95,6 +93,20 @@ func (f Field) Disconnect(src, dst string) error {
 	return nil
 }
 
+func (f *Field) DisconnectAll(src string) error {
+	parent, err := f.Get(src)
+	if err != nil {
+		return err
+	}
+
+	for _, child := range parent.Children() {
+		parent.Events() <- DisconnectEvent(child)
+		child.Events() <- DisconnectionEvent(parent)
+	}
+
+	return nil
+}
+
 //
 //
 //
@@ -106,15 +118,25 @@ type Node interface {
 	EventReceiver
 }
 
-func reachable(n Node, name string) bool {
-	for _, child := range n.Children() {
-		if child.Name() == name {
+var nilNode Node
+
+func reachable(n, tgt Node) bool {
+	D("reachable(\n\t%6s %v,\n\t%6s %v\n)", n.Name(), n, tgt.Name(), tgt)
+	if n == tgt {
+		D(" reachable because %v == %v", n, tgt)
+		return true
+	}
+	for i, child := range n.Children() {
+		if child == n {
+			D(" reachable because %s Child[%d] == %v", n.Name(), i, tgt)
 			return true
 		}
-		if reachable(child, name) {
+		if reachable(child, tgt) {
+			D(" recursive return reachable")
 			return true
 		}
 	}
+	D(" not reachable!")
 	return false
 }
 
@@ -126,15 +148,28 @@ func (nn nodeName) Name() string { return string(nn) }
 
 // singleParent may be embedded into any type to satisfy
 // the Parents() method of the Node interface, with arity=1.
-type singleParent struct{ Node }
+//
+// To set, do myStruct.ParentNode = n.
+// To clear, do myStruct.ParentNode = nilNode.
+type singleParent struct{ ParentNode Node }
 
-func (sp singleParent) Parents() []Node { return []Node{sp} }
+func (sp singleParent) Children() []Node {
+	if sp.ParentNode == nilNode {
+		return []Node{}
+	}
+	return []Node{sp.ParentNode}
+}
 
 // singleChild may be embedded into any type to satisfy
 // the Children() method of the Node interface, with arity=1.
-type singleChild struct{ Node }
+type singleChild struct{ ChildNode Node }
 
-func (sc singleChild) Children() []Node { return []Node{sc} }
+func (sc singleChild) Children() []Node {
+	if sc.ChildNode == nilNode {
+		return []Node{}
+	}
+	return []Node{sc.ChildNode}
+}
 
 // singleAncestry combines singleParent + singleChild.
 type singleAncestry struct {
@@ -144,19 +179,28 @@ type singleAncestry struct {
 
 // multipleParents may be embedded into any type to satisfy
 // the Parents() method of the Node interface, with arity=N.
-type multipleParents []Node
+type multipleParents struct{ m map[string]Node }
 
-func (mp multipleParents) Parents() []Node { return mp }
-
-func (mp multipleParents) Add(n Node) { mp = append(mp, n) }
-
-func (mp multipleParents) Delete(name string) {
-	for i, n := range mp {
-		if n.Name() == name {
-			mp = append(mp[:i], mp[i+1:]...)
-			return
-		}
+func newMultipleParents() *multipleParents {
+	return &multipleParents{
+		m: map[string]Node{},
 	}
+}
+
+func (mp *multipleParents) Parents() []Node {
+	parents := []Node{}
+	for _, n := range mp.m {
+		parents = append(parents, n)
+	}
+	return parents
+}
+
+func (mp *multipleParents) AddParent(n Node) {
+	mp.m[n.Name()] = n
+}
+
+func (mp *multipleParents) DeleteParent(name string) {
+	delete(mp.m, name)
 }
 
 // noParents may be embedded into any type to satisfy

@@ -118,14 +118,14 @@ func (f *FieldParser) parseDelete(args []string) {
 }
 
 func (f *FieldParser) parseArbitrary(cmd string, args []string) {
-	if len(args) < 1 {
-		f.output.Printf("usage: %s <action> [args]", cmd)
-		return
-	}
-
 	e, err := f.entity(cmd)
 	if err != nil {
 		f.output.Printf("%s: %s", cmd, err)
+		return
+	}
+
+	if len(args) < 1 {
+		f.output.Printf("usage: %s <action> [args]", cmd)
 		return
 	}
 
@@ -146,8 +146,8 @@ func (f *FieldParser) entity(s string) (interface{}, error) {
 		return KeyDownEvent(note), nil
 	}
 
-	if s == KeyUp {
-		// generic "keyup" yields event with 0 values
+	switch s {
+	case KeyUp, "ø", "Ø", "0":
 		return KeyUpEvent(NoteZero()), nil
 	}
 
@@ -156,12 +156,12 @@ func (f *FieldParser) entity(s string) (interface{}, error) {
 		return node, nil
 	}
 
-	return nil, fmt.Errorf("%s unrecognized", s)
+	return nil, fmt.Errorf("unrecognized")
 }
 
 func (f *FieldParser) parseEventCmd(ev Event, cmd string, args []string) {
 	switch cmd {
-	case "->": // send to
+	case "->", "=>":
 		if len(args) < 1 {
 			f.output.Printf("usage: %s -> <target>", ev)
 			return
@@ -172,7 +172,7 @@ func (f *FieldParser) parseEventCmd(ev Event, cmd string, args []string) {
 			f.output.Printf("%s -> %s: target: %s", ev, tgt, err)
 		}
 		node.Events() <- ev
-		f.output.Printf("%s -> %s: OK", ev, node.Name())
+		f.output.Printf("[%s %.1f] -> %s: OK", ev.Type, ev.Value, node.Name())
 
 	default:
 		f.output.Printf("unknown command '%s'", cmd)
@@ -181,15 +181,32 @@ func (f *FieldParser) parseEventCmd(ev Event, cmd string, args []string) {
 
 func (f *FieldParser) parseNodeCmd(node Node, cmd string, args []string) {
 	switch cmd {
-	case "->":
+	case "=>", "->", "c", "connect":
 		if len(args) < 1 {
 			f.output.Printf("usage: %s -> <target>", node.Name())
 			return
 		}
-		if err := f.f.Connect(node.Name(), args[0]); err != nil {
-			f.output.Printf("%s -> %s: %s", node.Name(), args[0], err)
+		tgt := args[0]
+		if err := f.f.Connect(node.Name(), tgt); err != nil {
+			f.output.Printf("%s => %s: %s", node.Name(), tgt, err)
 			return
 		}
-		f.output.Printf("%s -> %s: connect OK", node.Name(), args[0])
+		f.output.Printf("%s => %s: connect OK", node.Name(), tgt)
+
+	case "≠>", "≠", "x", "d", "disconnect":
+		if len(args) >= 1 {
+			tgt := args[0]
+			if err := f.f.Disconnect(node.Name(), tgt); err != nil {
+				f.output.Printf("%s ≠> %s: %s", node.Name(), tgt, err)
+				return
+			}
+			f.output.Printf("%s ≠> %s: disconnect OK", node.Name(), tgt)
+		} else {
+			if err := f.f.DisconnectAll(node.Name()); err != nil {
+				f.output.Printf("%s ≠> *: %s", node.Name(), err)
+				return
+			}
+			f.output.Printf("%s ≠> *: disconnect OK", node.Name())
+		}
 	}
 }

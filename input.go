@@ -35,3 +35,15 @@ func (i *FileInput) ReadOne() (string, error) {
 	}
 	return string(line), nil
 }
+
+//
+//
+//
+
+type InteractiveInput struct{}
+
+func (i *InteractiveInput) ReadOne() (string, error) {
+	fmt.Printf("> ")
+	buf, err := bufio.NewReader(os.Stdin).ReadBytes('\n')
+	return string(buf), err
+}

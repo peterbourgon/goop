@@ -13,15 +13,19 @@ func init() {
 }
 
 func main() {
-	i, err := NewFileInput(*filename)
-	if err != nil {
-		panic(err)
-	}
 	o := StdOutput{}
 	f := NewField()
 	f.Add(NewMixer())
 	p := NewFieldParser(f, o)
-	REPL(i, p, o)
+
+	fi, err := NewFileInput(*filename)
+	if err != nil {
+		panic(err)
+	}
+	REPL(fi, p, o)
+
+	ii := &InteractiveInput{}
+	REPL(ii, p, o)
 }
 
 func REPL(r Input, e Parser, p Output) {

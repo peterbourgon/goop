@@ -169,13 +169,20 @@ func square(x float32) float32 {
 type simpleGenerator struct {
 	generatorChannels
 	simpleParameters
+
 	nodeName
 	singleChild
 	noParents
 }
 
 func (g *simpleGenerator) String() string {
-	return fmt.Sprintf("%.2f hz, gain %.2f", g.hz, g.gain)
+	return fmt.Sprintf(
+		"<Hz=%.2f gain=%.2f Parents=%d Children=%d>",
+		g.hz,
+		g.gain,
+		len(g.Parents()),
+		len(g.Children()),
+	)
 }
 
 // generatorLoop is the common function that should drive all Generators
@@ -192,6 +199,7 @@ func (sg *simpleGenerator) loop(vp valueProvider) {
 		case ev := <-sg.generatorChannels.eventIn:
 			switch ev.Type {
 			case Connection, Disconnection:
+				D("simpleGenerator got ignored %s Event", ev.Type)
 				break // no parents: ignore
 
 			case Connect:
@@ -199,15 +207,17 @@ func (sg *simpleGenerator) loop(vp valueProvider) {
 				if !ok {
 					panic("simpleGenerator Connect to non-Node")
 				}
-				sg.singleChild.Node = n
+				sg.ChildNode = n
 				sg.generatorChannels.Reset()
+				D("simpleGenerator got Connect %s OK", n.Name())
 
 			case Disconnect:
-				sg.singleChild.Node = nil
+				sg.ChildNode = nilNode
 				sg.generatorChannels.Reset()
+				D("simpleGenerator got Disconnect OK")
 
 			case Kill:
-				sg.singleChild.Node = nil
+				sg.ChildNode = nilNode
 				sg.generatorChannels.Reset()
 				return
 
@@ -228,7 +238,7 @@ func (sg *simpleGenerator) loop(vp valueProvider) {
 type SineGenerator struct{ simpleGenerator }
 
 func (g *SineGenerator) String() string {
-	return fmt.Sprintf("SineGenerator: %s", g.simpleGenerator.String())
+	return fmt.Sprintf("[SineGenerator '%s' %s]", g.Name(), g.simpleGenerator.String())
 }
 
 func NewSineGenerator(name string) *SineGenerator {
