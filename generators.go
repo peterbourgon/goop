@@ -48,6 +48,10 @@ const (
 	Gain    = "gain"
 )
 
+func KeyDownEvent(n Note) Event { return Event{KeyDown, n.Hz(), n} }
+func KeyUpEvent(n Note) Event   { return Event{KeyUp, n.Hz(), n} }
+func GainEvent(g float32) Event { return Event{Gain, g, nil} }
+
 // simpleParameters are sufficient to control simple,
 // single-mode Generators.
 type simpleParameters struct {

@@ -19,6 +19,8 @@ type note struct {
 func (n note) String() string { return n.str }
 func (n note) Hz() float32    { return n.hz }
 
+func NoteZero() Note { return note{"Ø", 0.0} }
+
 func ParseNote(s string) (Note, error) {
 	ss := strings.ToLower(strings.TrimSpace(s))
 	if len(s) < 2 {
