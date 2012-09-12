@@ -68,7 +68,7 @@ func (f *FieldParser) Parse(s string) {
 }
 
 func (f *FieldParser) parseInfo() {
-	f.output.Printf("%v", f.f)
+	f.output.Printf("\n%s\n", f.f.Dot())
 }
 
 func (f *FieldParser) parseSleep(args []string) {

@@ -107,6 +107,33 @@ func (f *Field) DisconnectAll(src string) error {
 	return nil
 }
 
+func (f *Field) Dot() string {
+	s := "digraph G {\n"
+
+	// nodes
+	for _, n := range *f {
+		label := n.Name()
+		switch n.(type) {
+		case *Mixer:
+			label = "Mixer"
+		case *SineGenerator:
+			label = fmt.Sprintf("Sine Generator '%s'", n.Name())
+		}
+		s += fmt.Sprintf("\t%s [shape=box,label=\"%s\"];\n", n.Name(), label)
+	}
+	s += "\n"
+
+	// edges
+	for _, n := range *f {
+		for _, child := range n.Children() {
+			s += fmt.Sprintf("\t%s -> %s;\n", n.Name(), child.Name())
+		}
+	}
+
+	s += "}"
+	return s
+}
+
 //
 //
 //
