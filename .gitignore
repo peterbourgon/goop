@@ -5,4 +5,4 @@ _obj/*
 pkg/_obj/*
 bin/*
 _bin/*
-cli/cli
+*.txt
