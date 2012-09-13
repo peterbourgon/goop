@@ -208,8 +208,11 @@ func (sg *simpleGenerator) loop(vp valueProvider) {
 				if !ok {
 					panic("simpleGenerator Connect to non-Node")
 				}
+				// This is tentatively commented-out, because the scheduler
+				// may cause it to be executed *after* the downstream node has
+				// already called our AudioOut() and started consuming.
+				//sg.generatorChannels.Reset()
 				sg.ChildNode = n
-				sg.generatorChannels.Reset()
 				D("simpleGenerator got Connect %s OK", n.Name())
 
 			case Disconnect:
