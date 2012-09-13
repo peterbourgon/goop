@@ -238,8 +238,10 @@ func (sg *simpleGenerator) loop(vp valueProvider) {
 // thanks to #go-nuts skelterjohn for this construction idiom
 type SineGenerator struct{ simpleGenerator }
 
+func (g *SineGenerator) Kind() string { return "Sine Generator" }
+
 func (g *SineGenerator) String() string {
-	return fmt.Sprintf("[SineGenerator '%s' %s]", g.Name(), g.simpleGenerator.String())
+	return fmt.Sprintf("[%s %s]", NodeLabel(g), g.simpleGenerator.String())
 }
 
 func NewSineGenerator(name string) *SineGenerator {

@@ -91,7 +91,7 @@ func makeSimpleEffect(name string) simpleEffect {
 	}
 }
 
-func (se simpleEffect) loop(ep eventProcessor, ap audioProcessor) {
+func (se *simpleEffect) loop(ep eventProcessor, ap audioProcessor) {
 	var buf []float32 = nil
 	for {
 		// as described above: buffer exactly 1 audio buffer locally
@@ -107,29 +107,33 @@ func (se simpleEffect) loop(ep eventProcessor, ap audioProcessor) {
 		select {
 		case ev := <-se.effectChannels.eventIn:
 			switch ev.Type {
-			case Connect: // downstream -> ignore (handled via other mechanisms)
+			case Connect: // downstream
 				node, nodeOk := ev.Arg.(Node)
 				if !nodeOk {
 					break
 				}
 				se.ChildNode = node
+				D("simpleEffect got valid Connect: Parents=%d Children=%d", len(se.Parents()), len(se.Children()))
 				// nothing to do re: audio channels, really
 
-			case Disconnect: // downstream -> disconnect
+			case Disconnect: // downstream
 				se.ChildNode = nilNode // TODO could do more thorough checking
 				se.effectChannels.Reset()
 
 			case Connection: // upstream
 				node, nodeOk := ev.Arg.(Node)
 				if !nodeOk {
-					break
-				}
-				sender, senderOk := ev.Arg.(AudioSender)
-				if !senderOk {
+					D("simpleEffect got Connection from non-Node")
 					break
 				}
 				se.ParentNode = node
+				sender, senderOk := ev.Arg.(AudioSender)
+				if !senderOk {
+					D("simpleEffect got Connection from non-AudioSender")
+					break
+				}
 				se.effectChannels.audioIn = sender.AudioOut()
+				D("simpleEffect got valid Connection: Parents=%d Children=%d", len(se.Parents()), len(se.Children()))
 
 			case Disconnection: // upstream
 				se.ParentNode = nilNode
@@ -170,8 +174,10 @@ type GainLFO struct {
 }
 
 func (e *GainLFO) String() string {
-	return fmt.Sprintf("[GainLFO: %.2f-%.2f @ %.2f hz]", e.min, e.max, e.hz)
+	return fmt.Sprintf("[%s: %.2f-%.2f @ %.2f hz]", NodeLabel(e), e.min, e.max, e.hz)
 }
+
+func (e *GainLFO) Kind() string { return "gain LFO" }
 
 func NewGainLFO(name string) *GainLFO {
 	e := &GainLFO{

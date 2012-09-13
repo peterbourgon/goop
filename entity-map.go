@@ -4,25 +4,27 @@ import (
 	"fmt"
 )
 
-type EntityMap map[string]createFunction
+type CreateInstanceMap map[string]createFunction
 
 type createFunction func(string) Node
 
 var (
-	entityMap EntityMap
+	createInstanceMap CreateInstanceMap
 )
 
 func init() {
-	entityMap = EntityMap{
+	createInstanceMap = CreateInstanceMap{
 		"sine":           NewSineGeneratorNode,
 		"sine-generator": NewSineGeneratorNode,
 
-		"gainlfo": NewGainLFONode,
-		"lfo":     NewGainLFONode,
+		"gainlfo":  NewGainLFONode,
+		"gain-lfo": NewGainLFONode,
+		"lfo":      NewGainLFONode,
 	}
+
 }
 
-func (m EntityMap) CreateInstance(kind, name string) (Node, error) {
+func (m CreateInstanceMap) CreateInstance(kind, name string) (Node, error) {
 	f, ok := m[kind]
 	if !ok {
 		return nil, fmt.Errorf("'%s' unrecognized", kind)

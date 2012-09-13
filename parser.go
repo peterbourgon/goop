@@ -96,7 +96,7 @@ func (f *FieldParser) parseAdd(args []string) {
 		return
 	}
 
-	n, err := entityMap.CreateInstance(kind, name)
+	n, err := createInstanceMap.CreateInstance(kind, name)
 	if err != nil {
 		f.output.Printf("add %s %s: %s", kind, name, err)
 		return
@@ -122,6 +122,14 @@ func (f *FieldParser) parseDelete(args []string) {
 }
 
 func (f *FieldParser) parseArbitrary(cmd string, args []string) {
+	if _, ok := createInstanceMap[cmd]; ok {
+		f.output.Printf("'%s' is an entity type; assuming you meant 'add'", cmd)
+		newArgs := []string{cmd}
+		newArgs = append(newArgs, args...)
+		f.parseAdd(newArgs)
+		return
+	}
+
 	e, err := f.entity(cmd)
 	if err != nil {
 		f.output.Printf("%s: %s", cmd, err)

@@ -112,19 +112,13 @@ func (f *Field) Dot() string {
 
 	// nodes
 	for _, n := range *f {
-		label := n.Name()
-		switch n.(type) {
-		case *Mixer:
-			label = "Mixer"
-		case *SineGenerator:
-			label = fmt.Sprintf("Sine Generator '%s'", n.Name())
-		}
-		s += fmt.Sprintf("\t%s [shape=box,label=\"%s\"];\n", n.Name(), label)
+		s += fmt.Sprintf("\t%s [shape=box,label=\"%s\"];\n", n.Name(), NodeLabel(n))
 	}
 	s += "\n"
 
 	// edges
 	for _, n := range *f {
+		D("Dot: adding edges for %d children of %s", len(n.Children()), n.Name())
 		for _, child := range n.Children() {
 			s += fmt.Sprintf("\t%s -> %s;\n", n.Name(), child.Name())
 		}
@@ -143,6 +137,17 @@ type Node interface {
 	Parents() []Node
 	Children() []Node
 	EventReceiver
+}
+
+type Typed interface {
+	Kind() string
+}
+
+func NodeLabel(n Node) string {
+	if typed, ok := n.(Typed); ok {
+		return fmt.Sprintf("%s '%s'", typed.Kind(), n.Name())
+	}
+	return n.Name()
 }
 
 var nilNode Node
