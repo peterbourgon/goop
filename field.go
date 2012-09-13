@@ -180,7 +180,7 @@ func (nn nodeName) Name() string { return string(nn) }
 // To clear, do myStruct.ParentNode = nilNode.
 type singleParent struct{ ParentNode Node }
 
-func (sp singleParent) Children() []Node {
+func (sp singleParent) Parents() []Node {
 	if sp.ParentNode == nilNode {
 		return []Node{}
 	}

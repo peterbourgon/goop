@@ -1,0 +1,212 @@
+package main
+
+import (
+	"fmt"
+)
+
+// effectChannels are designed to be embedded into simple effects,
+// which should accept exactly one input audio channel, manipulate it
+// somehow, and provide the manipulated output on exactly one output
+// audio channel. Simple effects should also respond to (at minimum)
+// a certain subset of Events, so effectChannels also implements the
+// EventReceiver interface, and handles a subset of Event types itself.
+type effectChannels struct {
+	eventIn  chan Event
+	audioIn  <-chan []float32
+	audioOut chan []float32
+}
+
+func makeEffectChannels() effectChannels {
+	return effectChannels{
+		eventIn: make(chan Event, EVENT_CHAN_BUFFER),
+		// audioIn initially nil
+		audioOut: make(chan []float32, AUDIO_CHAN_BUFFER),
+	}
+}
+
+// Events() satisfies the Node interface.
+func (ec *effectChannels) Events() chan<- Event {
+	return ec.eventIn
+}
+
+// AudioOut() satisfies the AudioSender interface.
+func (ec *effectChannels) AudioOut() <-chan []float32 {
+	return ec.audioOut
+}
+
+// Reset() satisfies the AudioSender interface.
+func (ec *effectChannels) Reset() {
+	close(ec.audioOut)
+	ec.audioOut = make(chan []float32, AUDIO_CHAN_BUFFER)
+}
+
+// The important thing to consider here is how data flows through the network.
+// It's a pull-based system. Audio producers will happily produce as much data
+// as they can cram into their output channels. The consumer at the end of the
+// data chain (ie. the mixer) is ultimately responsible for draining the
+// channels. So, it controls the rate at which audio data should be produced.
+//
+// How do we handle disconnections? Specifically, when a disconnect signal is
+// sent to a module, it closes its audio output channels, and re-creates them.
+// How will that be signaled to downstream receivers? Detecting a channel close
+// is simple enough, on the receiving end:
+//
+//     buf, ok := <-audioIn
+//     if !ok {
+//	       // closed
+//     }
+//
+// But that implies that checking if a channel is closed will yield actual data
+// if it's not. We don't want that behavior. So, receivers need to throttle
+// their channel-drains to at most one per every available slot in their
+// downstream channel-fills. The simple way to do that is to buffer one
+// []float32 in each module.
+//
+//     var buf []float32 = nil
+//     for {
+//         if buf == nil {
+//             buf := <-audioIn
+//             process(buf)
+//         }
+//         select {
+//         case audioOut <-buf:
+//             buf = nil
+//         case ev := <-eventIn:
+//             process(ev)
+//         }
+//     }
+//
+// Should work...
+
+type simpleEffect struct {
+	nodeName
+	singleAncestry
+	effectChannels
+}
+
+func makeSimpleEffect(name string) simpleEffect {
+	return simpleEffect{
+		nodeName:       nodeName(name),
+		effectChannels: makeEffectChannels(),
+	}
+}
+
+func (se simpleEffect) loop(ep eventProcessor, ap audioProcessor) {
+	var buf []float32 = nil
+	for {
+		// as described above: buffer exactly 1 audio buffer locally
+		var ok bool = false
+		if se.effectChannels.audioIn != nil && buf == nil {
+			if buf, ok = <-se.effectChannels.audioIn; ok {
+				ap.processAudio(buf)
+			} else {
+				se.effectChannels.audioIn = nil // closed
+			}
+		}
+
+		select {
+		case ev := <-se.effectChannels.eventIn:
+			switch ev.Type {
+			case Connect: // downstream -> ignore (handled via other mechanisms)
+				node, nodeOk := ev.Arg.(Node)
+				if !nodeOk {
+					break
+				}
+				se.ChildNode = node
+				// nothing to do re: audio channels, really
+
+			case Disconnect: // downstream -> disconnect
+				se.ChildNode = nilNode // TODO could do more thorough checking
+				se.effectChannels.Reset()
+
+			case Connection: // upstream
+				node, nodeOk := ev.Arg.(Node)
+				if !nodeOk {
+					break
+				}
+				sender, senderOk := ev.Arg.(AudioSender)
+				if !senderOk {
+					break
+				}
+				se.ParentNode = node
+				se.effectChannels.audioIn = sender.AudioOut()
+
+			case Disconnection: // upstream
+				se.ParentNode = nilNode
+				// nothing to do re: audio channels, really
+
+			case Kill:
+				se.ChildNode = nilNode
+				se.ParentNode = nilNode
+				se.effectChannels.Reset()
+				return
+
+			default:
+				ep.processEvent(ev)
+			}
+
+		case se.effectChannels.audioOut <- buf:
+			buf = nil // need a new one, now
+		}
+	}
+}
+
+// The audioProcessor interface is designed to be implemented by concrete
+// Effects. The processAudio method should manipulate the passed audio
+// buffer in-place.
+type audioProcessor interface {
+	processAudio(buf []float32)
+}
+
+// The GainLFO is an Effect which cycles the gain of the audio signal
+// from min to max at a rate of hz.
+type GainLFO struct {
+	simpleEffect
+
+	min   float32
+	max   float32
+	hz    float32
+	phase float32
+}
+
+func (e *GainLFO) String() string {
+	return fmt.Sprintf("[GainLFO: %.2f-%.2f @ %.2f hz]", e.min, e.max, e.hz)
+}
+
+func NewGainLFO(name string) *GainLFO {
+	e := &GainLFO{
+		simpleEffect: makeSimpleEffect(name),
+
+		min:   0.0,
+		max:   1.0,
+		hz:    1.0,
+		phase: 0.0,
+	}
+	go e.simpleEffect.loop(e, e)
+	return e
+}
+
+func NewGainLFONode(name string) Node {
+	return Node(NewGainLFO(name))
+}
+
+// GainLFO's processEvent manages changes to min, max and hz values.
+func (e *GainLFO) processEvent(ev Event) {
+	switch ev.Type {
+	case "min":
+		e.min = ev.Value
+	case "max":
+		e.max = ev.Value
+	case "hz":
+		e.hz = ev.Value
+	}
+}
+
+// GainLFO's processAudio changes the amplitude of the buffer.
+func (e *GainLFO) processAudio(buf []float32) {
+	for i, v := range buf {
+		raw := nextGeneratorFunctionValue(sine, e.hz, &e.phase)
+		mod := ((e.max - e.min) * raw) + e.min
+		buf[i] = mod * v
+	}
+}

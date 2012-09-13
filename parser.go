@@ -92,18 +92,22 @@ func (f *FieldParser) parseAdd(args []string) {
 
 	kind, name := args[0], args[1]
 	if n, _ := f.f.Get(name); n != nil {
-		f.output.Printf("add: %s: already exists", name)
+		f.output.Printf("%s: already exists", name)
 		return
 	}
 
-	switch kind {
-	case "sine-generator", "sine":
-		f.f.Add(NewSineGenerator(name))
-		f.output.Printf("add: %s: %s: OK", kind, name)
-	default:
-		f.output.Printf("add: %s: unknown kind", kind)
+	n, err := entityMap.CreateInstance(kind, name)
+	if err != nil {
+		f.output.Printf("add %s %s: %s", kind, name, err)
 		return
 	}
+
+	if err := f.f.Add(n); err != nil {
+		f.output.Printf("add %s %s: %s", kind, name, err)
+		return
+	}
+
+	f.output.Printf("add %s %s: OK", kind, name)
 }
 
 func (f *FieldParser) parseDelete(args []string) {

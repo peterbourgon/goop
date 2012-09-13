@@ -60,8 +60,9 @@ type simpleParameters struct {
 	gain  float32 // 0..1
 }
 
-// process applies Events which should have an effect on simpleParameters.
-func (sp *simpleParameters) process(ev Event) {
+// processEvent satisfies the eventProcessor interface.
+// It applies Events which should have an effect on simpleParameters.
+func (sp *simpleParameters) processEvent(ev Event) {
 	switch ev.Type {
 	case KeyDown:
 		sp.hz = ev.Value
@@ -222,7 +223,7 @@ func (sg *simpleGenerator) loop(vp valueProvider) {
 				return
 
 			default:
-				sg.simpleParameters.process(ev)
+				sg.simpleParameters.processEvent(ev)
 			}
 		case sg.generatorChannels.audioOut <- nextBuffer(vp):
 			break
@@ -251,6 +252,10 @@ func NewSineGenerator(name string) *SineGenerator {
 	}
 	go g.simpleGenerator.loop(&g)
 	return &g
+}
+
+func NewSineGeneratorNode(name string) Node {
+	return Node(NewSineGenerator(name))
 }
 
 // nextValue for a SineGenerator will output a pure sine waveform at the

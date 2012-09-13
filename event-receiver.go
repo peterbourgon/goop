@@ -1,9 +1,20 @@
 package main
 
+// The eventProcessor interface is designed to be implemented by concrete
+// nodes in the network, to handle specific Events relevant to their param.
+// Often there is a hierarchy of eventProcessors within a single concrete
+// type, and Events fall from upper to lower levels.
+type eventProcessor interface {
+	processEvent(ev Event)
+}
+
+// An EventReceiver is capable of receiving and processing Events.
 type EventReceiver interface {
 	Events() chan<- Event
 }
 
+// Event describes any asynchronous thing which may be
+// sent to Nodes in the Field.
 type Event struct {
 	Type  string
 	Value float32
