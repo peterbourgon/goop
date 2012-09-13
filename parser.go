@@ -41,6 +41,13 @@ func NewFieldParser(f Field, output Output) *FieldParser {
 }
 
 func (f *FieldParser) Parse(s string) {
+	toks := strings.Split(s, ";")
+	for _, ss := range toks {
+		f.parse(ss)
+	}
+}
+
+func (f *FieldParser) parse(s string) {
 	s = strings.ToLower(strings.TrimSpace(s))
 	if s == "" {
 		return
