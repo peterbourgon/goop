@@ -21,6 +21,7 @@ func NewFileInput(filename string) (*FileInput, error) {
 	if err != nil {
 		return nil, err
 	}
+	defer f.Close()
 	r := bufio.NewReader(f)
 	return &FileInput{*r}, nil
 }

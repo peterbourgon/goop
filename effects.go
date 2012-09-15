@@ -162,6 +162,10 @@ type audioProcessor interface {
 	processAudio(buf []float32)
 }
 
+//
+//
+//
+
 // The GainLFO is an Effect which cycles the gain of the audio signal
 // from min to max at a rate of hz.
 type GainLFO struct {
@@ -172,12 +176,6 @@ type GainLFO struct {
 	hz    float32
 	phase float32
 }
-
-func (e *GainLFO) String() string {
-	return fmt.Sprintf("[%s: %.2f-%.2f @ %.2f hz]", NodeLabel(e), e.min, e.max, e.hz)
-}
-
-func (e *GainLFO) Kind() string { return "gain LFO" }
 
 func NewGainLFO(name string) *GainLFO {
 	e := &GainLFO{
@@ -195,6 +193,12 @@ func NewGainLFO(name string) *GainLFO {
 func NewGainLFONode(name string) Node {
 	return Node(NewGainLFO(name))
 }
+
+func (e *GainLFO) String() string {
+	return fmt.Sprintf("[%s: %.2f-%.2f @ %.2f hz]", NodeLabel(e), e.min, e.max, e.hz)
+}
+
+func (e *GainLFO) Kind() string { return "gain LFO" }
 
 // GainLFO's processEvent manages changes to min, max and hz values.
 func (e *GainLFO) processEvent(ev Event) {
@@ -214,5 +218,129 @@ func (e *GainLFO) processAudio(buf []float32) {
 		raw := nextGeneratorFunctionValue(sine, e.hz, &e.phase)
 		mod := ((e.max - e.min) * raw) + e.min
 		buf[i] = mod * v
+	}
+}
+
+//
+//
+//
+
+// The Delay is an Effect which buffers incoming audio data for (approximately)
+// delay seconds before sending it out the outgoing audio channel.
+type Delay struct {
+	simpleEffect
+
+	history chan []float32
+	delay   float32
+}
+
+func NewDelay(name string) *Delay {
+	initialDelay := float32(1.0) // sec
+	depth := int64((SRATE * initialDelay) / BUFSZ)
+	e := &Delay{
+		simpleEffect: makeSimpleEffect(name),
+
+		history: make(chan []float32, depth),
+		delay:   initialDelay,
+	}
+	go e.simpleEffect.loop(e, e)
+	return e
+}
+
+func NewDelayNode(name string) Node {
+	return Node(NewDelay(name))
+}
+
+func (e *Delay) String() string {
+	return fmt.Sprintf("[%s: %.2fs]", NodeLabel(e), e.delay)
+}
+
+func (e *Delay) Kind() string { return "Delay" }
+
+// Delay's processEvent manages changes to the delay parameter.
+func (e *Delay) processEvent(ev Event) {
+	switch ev.Type {
+	case "delay":
+		e.delay = ev.Value
+		depth := int64((SRATE * e.delay) / BUFSZ)
+		e.history = make(chan []float32, depth)
+	}
+}
+
+func (e *Delay) processAudio(buf []float32) {
+	select {
+	case e.history <- buf:
+		// not yet full, so we shouldn't output anything
+		for i, _ := range buf {
+			buf[i] = 0.0
+		}
+	default:
+		// full, so pop + push
+		outBuf := <-e.history
+		e.history <- buf
+		buf = outBuf
+	}
+}
+
+//
+//
+//
+
+// An Echo is just a Delay with different processAudio logic.
+type Echo struct {
+	Delay
+	wet float32 // 0..1
+}
+
+func NewEcho(name string) *Echo {
+	initialDelay := float32(1.0) // sec
+	depth := int64((SRATE * initialDelay) / BUFSZ)
+	e := &Echo{
+		Delay: Delay{
+			simpleEffect: makeSimpleEffect(name),
+			history:      make(chan []float32, depth),
+			delay:        initialDelay,
+		},
+		wet: 0.5,
+	}
+	go e.simpleEffect.loop(e, e)
+	return e
+}
+
+func NewEchoNode(name string) Node {
+	return Node(NewEcho(name))
+}
+
+func (e *Echo) String() string {
+	return fmt.Sprintf("[%s: %.2fs]", NodeLabel(e), e.delay)
+}
+
+func (e *Echo) Kind() string { return "Echo" }
+
+func (e *Echo) processEvent(ev Event) {
+	switch ev.Type {
+	case "wet":
+		if ev.Value >= 0.0 && ev.Value <= 1 {
+			e.wet = ev.Value
+		}
+	default:
+		e.Delay.processEvent(ev)
+	}
+}
+
+func (e *Echo) processAudio(buf []float32) {
+	select {
+	case e.history <- buf:
+		// not yet full, so we shouldn't output anything
+		break
+	default:
+		outBuf := <-e.history // pop
+		e.history <- buf      // push
+		if len(buf) != len(outBuf) {
+			break
+		}
+		for i, val := range buf {
+			buf[i] = (e.wet * val) + (outBuf[i] * (1 - e.wet))
+		}
 	}
 }

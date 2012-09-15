@@ -18,17 +18,15 @@ func main() {
 	f.Add(NewMixer())
 	p := NewFieldParser(f, o)
 
-	fi, err := NewFileInput(*filename)
-	if err != nil {
-		panic(err)
+	if fi, err := NewFileInput(*filename); err == nil {
+		REPL(fi, p)
 	}
-	REPL(fi, p, o)
 
 	ii := &InteractiveInput{}
-	REPL(ii, p, o)
+	REPL(ii, p)
 }
 
-func REPL(r Input, e Parser, p Output) {
+func REPL(r Input, e Parser) {
 	for {
 		input, err := r.ReadOne() // R
 		if err != nil {

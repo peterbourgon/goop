@@ -20,6 +20,10 @@ func init() {
 		"gainlfo":  NewGainLFONode,
 		"gain-lfo": NewGainLFONode,
 		"lfo":      NewGainLFONode,
+
+		"delay": NewDelayNode,
+
+		"echo": NewEchoNode,
 	}
 
 }

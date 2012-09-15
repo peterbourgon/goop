@@ -112,7 +112,12 @@ func (f *Field) Dot() string {
 
 	// nodes
 	for _, n := range *f {
-		s += fmt.Sprintf("\t%s [shape=box,label=\"%s\"];\n", n.Name(), NodeLabel(n))
+		s += fmt.Sprintf(
+			"\t%s [shape=box,label=\"%s\\n%s\"];\n",
+			n.Name(),
+			NodeLabel(n),
+			n,
+		)
 	}
 	s += "\n"
 
@@ -139,6 +144,8 @@ type Node interface {
 	EventReceiver
 }
 
+var nilNode Node
+
 type Typed interface {
 	Kind() string
 }
@@ -149,8 +156,6 @@ func NodeLabel(n Node) string {
 	}
 	return n.Name()
 }
-
-var nilNode Node
 
 func reachable(n, tgt Node) bool {
 	D("reachable(\n\t%6s %v,\n\t%6s %v\n)", n.Name(), n, tgt.Name(), tgt)
@@ -178,6 +183,10 @@ type nodeName string
 
 func (nn nodeName) Name() string { return string(nn) }
 
+//
+//
+//
+
 // singleParent may be embedded into any type to satisfy
 // the Parents() method of the Node interface, with arity=1.
 //
@@ -194,6 +203,9 @@ func (sp singleParent) Parents() []Node {
 
 // singleChild may be embedded into any type to satisfy
 // the Children() method of the Node interface, with arity=1.
+//
+// To set, do myStruct.ChildNode = n.
+// To clear, do myStruct.ChildNode = nilNode.
 type singleChild struct{ ChildNode Node }
 
 func (sc singleChild) Children() []Node {
@@ -204,6 +216,8 @@ func (sc singleChild) Children() []Node {
 }
 
 // singleAncestry combines singleParent + singleChild.
+// It should be embedded into a concrete struct.
+// It requires no explicit initialization.
 type singleAncestry struct {
 	singleParent
 	singleChild

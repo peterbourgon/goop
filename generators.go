@@ -212,6 +212,7 @@ func (sg *simpleGenerator) loop(vp valueProvider) {
 				// may cause it to be executed *after* the downstream node has
 				// already called our AudioOut() and started consuming.
 				//sg.generatorChannels.Reset()
+				// TODO revisit the logic here
 				sg.ChildNode = n
 				D("simpleGenerator got Connect %s OK", n.Name())
 
