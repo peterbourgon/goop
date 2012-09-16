@@ -2,10 +2,12 @@ package main
 
 import (
 	"flag"
+	"os"
 )
 
 var (
 	filename = flag.String("filename", "default.txt", "command file")
+	dotfile  = flag.String("dotfile", "", "Field representation will be written here")
 )
 
 func init() {
@@ -16,6 +18,7 @@ func main() {
 	o := StdOutput{}
 	f := NewField()
 	f.Add(NewMixer())
+	f.Add(NewClock(f))
 	p := NewFieldParser(f, o)
 
 	if fi, err := NewFileInput(*filename); err == nil {
@@ -34,4 +37,21 @@ func REPL(r Input, e Parser) {
 		}
 		e.Parse(input) // E+P
 	} // L
+}
+
+func writeDotfile(f Field) {
+	if *dotfile == "" {
+		return
+	}
+	file, err := os.Create(*dotfile)
+	if err != nil {
+		D("couldn't write %s: %s", *dotfile, err)
+		return
+	}
+	defer file.Close()
+	_, err = file.Write([]byte(f.Dot()))
+	if err != nil {
+		D("error writing %s: %s", *dotfile, err)
+		return
+	}
 }

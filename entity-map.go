@@ -24,6 +24,11 @@ func init() {
 		"delay": NewDelayNode,
 
 		"echo": NewEchoNode,
+
+		"syn":          NewSynchronizerNode,
+		"sync":         NewSynchronizerNode,
+		"synchro":      NewSynchronizerNode,
+		"synchronizer": NewSynchronizerNode,
 	}
 
 }

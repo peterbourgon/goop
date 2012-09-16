@@ -160,6 +160,13 @@ func (f *FieldParser) parseArbitrary(cmd string, args []string) {
 }
 
 func (f *FieldParser) entity(s string) (interface{}, error) {
+	// It's possible to name a Node after a builtin, so if we don't parse
+	// Nodes before builtins, they can become inaccessible.
+	node, err := f.f.Get(s)
+	if err == nil {
+		return node, nil
+	}
+
 	note, err := ParseNote(s)
 	if err == nil {
 		return KeyDownEvent(note), nil
@@ -170,9 +177,12 @@ func (f *FieldParser) entity(s string) (interface{}, error) {
 		return KeyUpEvent(NoteZero()), nil
 	}
 
-	node, err := f.f.Get(s)
+	// TODO it's not clear to me that I want to allow this.
+	// TODO perhaps better to explicitly parse all Event types?
+	ev, err := ParseArbitraryEvent(s)
 	if err == nil {
-		return node, nil
+		D("parsed arbitrary Event %v", ev)
+		return ev, nil
 	}
 
 	return nil, fmt.Errorf("unrecognized")

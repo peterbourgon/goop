@@ -107,42 +107,30 @@ func (se *simpleEffect) loop(ep eventProcessor, ap audioProcessor) {
 		select {
 		case ev := <-se.effectChannels.eventIn:
 			switch ev.Type {
-			case Connect: // downstream
-				node, nodeOk := ev.Arg.(Node)
-				if !nodeOk {
-					break
-				}
-				se.ChildNode = node
-				D("simpleEffect got valid Connect: Parents=%d Children=%d", len(se.Parents()), len(se.Children()))
+			case Connect:
 				// nothing to do re: audio channels, really
+				se.singleAncestry.processEvent(ev)
 
-			case Disconnect: // downstream
-				se.ChildNode = nilNode // TODO could do more thorough checking
+			case Disconnect:
 				se.effectChannels.Reset()
+				se.singleAncestry.processEvent(ev)
 
 			case Connection: // upstream
-				node, nodeOk := ev.Arg.(Node)
-				if !nodeOk {
-					D("simpleEffect got Connection from non-Node")
-					break
-				}
-				se.ParentNode = node
 				sender, senderOk := ev.Arg.(AudioSender)
 				if !senderOk {
 					D("simpleEffect got Connection from non-AudioSender")
 					break
 				}
 				se.effectChannels.audioIn = sender.AudioOut()
-				D("simpleEffect got valid Connection: Parents=%d Children=%d", len(se.Parents()), len(se.Children()))
+				se.singleAncestry.processEvent(ev)
 
 			case Disconnection: // upstream
-				se.ParentNode = nilNode
 				// nothing to do re: audio channels, really
+				se.singleAncestry.processEvent(ev)
 
 			case Kill:
-				se.ChildNode = nilNode
-				se.ParentNode = nilNode
 				se.effectChannels.Reset()
+				se.singleAncestry.processEvent(ev)
 				return
 
 			default:

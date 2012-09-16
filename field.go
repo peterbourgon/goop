@@ -11,6 +11,7 @@ func NewField() Field {
 }
 
 func (f Field) Add(n Node) error {
+	defer writeDotfile(f)
 	name := n.Name()
 	if n, _ := f.Get(name); n != nil {
 		return fmt.Errorf("already exists")
@@ -27,6 +28,7 @@ func (f Field) Get(name string) (Node, error) {
 }
 
 func (f Field) Delete(name string) error {
+	defer writeDotfile(f)
 	n, err := f.Get(name)
 	if err != nil {
 		return fmt.Errorf("not found")
@@ -50,6 +52,7 @@ func (f Field) Delete(name string) error {
 
 func (f Field) Connect(src, dst string) error {
 	D("Connect(%s, %s)", src, dst)
+	defer writeDotfile(f)
 	parent, err := f.Get(src)
 	if err != nil {
 		return err
@@ -71,6 +74,7 @@ func (f Field) Connect(src, dst string) error {
 }
 
 func (f Field) Disconnect(src, dst string) error {
+	defer writeDotfile(f)
 	parent, err := f.Get(src)
 	if err != nil {
 		return err
@@ -93,7 +97,8 @@ func (f Field) Disconnect(src, dst string) error {
 	return nil
 }
 
-func (f *Field) DisconnectAll(src string) error {
+func (f Field) DisconnectAll(src string) error {
+	defer writeDotfile(f)
 	parent, err := f.Get(src)
 	if err != nil {
 		return err
@@ -107,16 +112,22 @@ func (f *Field) DisconnectAll(src string) error {
 	return nil
 }
 
+func (f Field) Broadcast(ev Event) {
+	for _, n := range f {
+		n.Events() <- ev
+	}
+}
+
 func (f *Field) Dot() string {
 	s := "digraph G {\n"
 
 	// nodes
 	for _, n := range *f {
 		s += fmt.Sprintf(
-			"\t%s [shape=box,label=\"%s\\n%s\"];\n",
+			"\t%s [shape=box,label=\"%s\"];\n",
 			n.Name(),
 			NodeLabel(n),
-			n,
+			//n,
 		)
 	}
 	s += "\n"
@@ -201,6 +212,21 @@ func (sp singleParent) Parents() []Node {
 	return []Node{sp.ParentNode}
 }
 
+func (sp *singleParent) processEvent(ev Event) {
+	switch ev.Type {
+	case Connection: // upstream
+		node, nodeOk := ev.Arg.(Node)
+		if !nodeOk {
+			break
+		}
+		sp.ParentNode = node
+
+	case Disconnection: // upstream
+		sp.ParentNode = nilNode
+
+	}
+}
+
 // singleChild may be embedded into any type to satisfy
 // the Children() method of the Node interface, with arity=1.
 //
@@ -215,12 +241,40 @@ func (sc singleChild) Children() []Node {
 	return []Node{sc.ChildNode}
 }
 
+func (sc *singleChild) processEvent(ev Event) {
+	switch ev.Type {
+	case Connect: // downstream
+		node, nodeOk := ev.Arg.(Node)
+		if !nodeOk {
+			break
+		}
+		sc.ChildNode = node
+
+	case Disconnect: // downstream
+		sc.ChildNode = nilNode // TODO could do more thorough checking
+	}
+}
+
 // singleAncestry combines singleParent + singleChild.
 // It should be embedded into a concrete struct.
 // It requires no explicit initialization.
 type singleAncestry struct {
 	singleParent
 	singleChild
+}
+
+func (sa *singleAncestry) processEvent(ev Event) {
+	switch ev.Type {
+	case Connect, Disconnect: // downstream
+		sa.singleChild.processEvent(ev)
+
+	case Connection, Disconnection: // upstream
+		sa.singleParent.processEvent(ev)
+
+	case Kill:
+		sa.singleChild.ChildNode = nilNode
+		sa.singleParent.ParentNode = nilNode
+	}
 }
 
 // multipleParents may be embedded into any type to satisfy

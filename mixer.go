@@ -49,7 +49,7 @@ func NewMixer() *Mixer {
 		cond:    nil,
 	}
 	m.cond = sync.NewCond(m)
-	go m.eventLoop()
+	go m.loop()
 	go m.Play()
 	return m
 }
@@ -57,7 +57,7 @@ func NewMixer() *Mixer {
 // Events satisfies the Events() method in the Node interface.
 func (m *Mixer) Events() chan<- Event { return m.eventIn }
 
-func (m *Mixer) eventLoop() {
+func (m *Mixer) loop() {
 	for {
 		select {
 		case ev := <-m.eventIn:
