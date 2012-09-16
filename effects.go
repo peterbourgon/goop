@@ -368,6 +368,8 @@ func NewADSR(name string) *ADSR {
 
 func NewADSRNode(name string) Node { return Node(NewADSR(name)) }
 
+func (e *ADSR) Kind() string { return "ADSR" }
+
 type ADSRMode string
 
 const (
@@ -397,7 +399,7 @@ func (e *ADSR) processEvent(ev Event) {
 }
 
 var (
-	sampleDuration = time.Duration(float32(1/SRATE) * float32(time.Second))
+	sampleDuration = time.Duration((float64(1.0) / float64(SRATE)) * float64(time.Second))
 )
 
 func (e *ADSR) processAudio(buf []float32) {
@@ -408,12 +410,13 @@ func (e *ADSR) processAudio(buf []float32) {
 	//
 	// Node that this is a purely signal-triggered ADSR envelope.
 	// That means it must receive a 0.0 before it will retrigger.
+	D("ADSR sampleDuration=%s mode=%s pct=%.2f processing %d", sampleDuration, e.mode, e.percent, len(buf))
 	for i, _ := range buf {
 		switch e.mode {
 		case Attack:
 			// The sample scales from 0 to 100% according to e.percent
 			buf[i] = e.percent * buf[i]
-			e.percent += float32(sampleDuration / e.attack)
+			e.percent += float32(float64(sampleDuration) / float64(e.attack))
 			if e.percent >= 100.0 {
 				e.percent = 0.0
 				e.mode = Decay
@@ -424,7 +427,7 @@ func (e *ADSR) processAudio(buf []float32) {
 			span := 1 - e.sustain
 			scale := 1 - (e.percent * span)
 			buf[i] = buf[i] * scale
-			e.percent += float32(sampleDuration / e.decay)
+			e.percent += float32(float64(sampleDuration) / float64(e.attack))
 			if e.percent >= 100.0 {
 				e.percent = 0.0
 				e.mode = Sustain
@@ -455,7 +458,7 @@ func (e *ADSR) processAudio(buf []float32) {
 			span := e.sustain
 			scale := 1 - (e.percent * span)
 			buf[i] = buf[i] * scale
-			e.percent += float32(sampleDuration / e.release)
+			e.percent += float32(float64(sampleDuration) / float64(e.attack))
 
 			if e.percent >= 100.0 { // Complete
 				e.mode = Attack
