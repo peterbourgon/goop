@@ -66,7 +66,7 @@ func (s *Synchronizer) loop() {
 				return
 
 			case Connect, Disconnect, Connection, Disconnection:
-				s.singleAncestry.processEvent(ev)
+				s.singleAncestry.processEvent(ev, s)
 
 			default:
 				s.buffer = append(s.buffer, ev)

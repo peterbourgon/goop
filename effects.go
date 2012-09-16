@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"time"
 )
 
 // effectChannels are designed to be embedded into simple effects,
@@ -109,11 +110,11 @@ func (se *simpleEffect) loop(ep eventProcessor, ap audioProcessor) {
 			switch ev.Type {
 			case Connect:
 				// nothing to do re: audio channels, really
-				se.singleAncestry.processEvent(ev)
+				se.singleAncestry.processEvent(ev, se)
 
 			case Disconnect:
 				se.effectChannels.Reset()
-				se.singleAncestry.processEvent(ev)
+				se.singleAncestry.processEvent(ev, se)
 
 			case Connection: // upstream
 				sender, senderOk := ev.Arg.(AudioSender)
@@ -122,15 +123,15 @@ func (se *simpleEffect) loop(ep eventProcessor, ap audioProcessor) {
 					break
 				}
 				se.effectChannels.audioIn = sender.AudioOut()
-				se.singleAncestry.processEvent(ev)
+				se.singleAncestry.processEvent(ev, se)
 
 			case Disconnection: // upstream
 				// nothing to do re: audio channels, really
-				se.singleAncestry.processEvent(ev)
+				se.singleAncestry.processEvent(ev, se)
 
 			case Kill:
 				se.effectChannels.Reset()
-				se.singleAncestry.processEvent(ev)
+				se.singleAncestry.processEvent(ev, se)
 				return
 
 			default:
@@ -329,6 +330,140 @@ func (e *Echo) processAudio(buf []float32) {
 		}
 		for i, val := range buf {
 			buf[i] = (e.wet * val) + (outBuf[i] * (1 - e.wet))
+		}
+	}
+}
+
+//
+//
+//
+
+type ADSR struct {
+	simpleEffect
+
+	mode    ADSRMode
+	percent float32
+
+	attack  time.Duration
+	decay   time.Duration
+	sustain float32
+	release time.Duration
+}
+
+func NewADSR(name string) *ADSR {
+	e := &ADSR{
+		simpleEffect: makeSimpleEffect(name),
+
+		mode:    Attack,
+		percent: 0.0,
+
+		attack:  50 * time.Millisecond,
+		decay:   50 * time.Millisecond,
+		sustain: 0.8,
+		release: 100 * time.Millisecond,
+	}
+	go e.simpleEffect.loop(e, e)
+	return e
+}
+
+func NewADSRNode(name string) Node { return Node(NewADSR(name)) }
+
+type ADSRMode string
+
+const (
+	Attack  = "attack"
+	Decay   = "decay"
+	Sustain = "sustain"
+	Release = "release"
+)
+
+func (e *ADSR) processEvent(ev Event) {
+	switch ev.Type {
+	case Attack:
+		if d, ok := ev.Arg.(time.Duration); ok {
+			e.attack = d
+		}
+	case Decay:
+		if d, ok := ev.Arg.(time.Duration); ok {
+			e.decay = d
+		}
+	case Sustain:
+		e.sustain = ev.Value
+	case Release:
+		if d, ok := ev.Arg.(time.Duration); ok {
+			e.decay = d
+		}
+	}
+}
+
+var (
+	sampleDuration = time.Duration(float32(1/SRATE) * float32(time.Second))
+)
+
+func (e *ADSR) processAudio(buf []float32) {
+	// We are e.percent of the way through the e.mode mode.
+	// Each sample in the buffer represents (1/SRATE) * time.Second time units.
+	// Therefore, every sample advances our percent in the same way:
+	//   percent += <sample duration>/<mode duration>.
+	//
+	// Node that this is a purely signal-triggered ADSR envelope.
+	// That means it must receive a 0.0 before it will retrigger.
+	for i, _ := range buf {
+		switch e.mode {
+		case Attack:
+			// The sample scales from 0 to 100% according to e.percent
+			buf[i] = e.percent * buf[i]
+			e.percent += float32(sampleDuration / e.attack)
+			if e.percent >= 100.0 {
+				e.percent = 0.0
+				e.mode = Decay
+			}
+
+		case Decay:
+			// The sample scales from 100% to e.sustain according to e.percent
+			span := 1 - e.sustain
+			scale := 1 - (e.percent * span)
+			buf[i] = buf[i] * scale
+			e.percent += float32(sampleDuration / e.decay)
+			if e.percent >= 100.0 {
+				e.percent = 0.0
+				e.mode = Sustain
+			}
+
+		case Sustain:
+			// > Like an adsr~ triggered by an input float, a zero value
+			// > represents "note-off" and will begin the release stage. unlike
+			// > the event-trigger model, a signal-triggered adsr~ must receive
+			// > a zero before it will retrigger.
+			//
+			// http://www.cycling74.com/docs/max5/refpages/msp-ref/adsr~.html
+			if buf[i] != 0.0 {
+				buf[i] = buf[i] * e.sustain
+				break
+			}
+			e.percent = 0.0
+			e.mode = Release
+			fallthrough
+
+		case Release:
+			if buf[i] != 0.0 { // Retrigger
+				e.mode = Attack
+				e.percent = 0.0
+			}
+
+			// The sample scales from e.sustain to 0% according to e.percent
+			span := e.sustain
+			scale := 1 - (e.percent * span)
+			buf[i] = buf[i] * scale
+			e.percent += float32(sampleDuration / e.release)
+
+			if e.percent >= 100.0 { // Complete
+				e.mode = Attack
+				e.percent = 0.0
+			}
+
+		default:
+			panic("impossible")
 		}
 	}
 }

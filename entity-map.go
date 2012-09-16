@@ -25,6 +25,8 @@ func init() {
 
 		"echo": NewEchoNode,
 
+		"adsr": NewADSRNode,
+
 		"syn":          NewSynchronizerNode,
 		"sync":         NewSynchronizerNode,
 		"synchro":      NewSynchronizerNode,

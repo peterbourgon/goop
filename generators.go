@@ -211,8 +211,16 @@ func (sg *simpleGenerator) loop(vp valueProvider) {
 				// This is tentatively commented-out, because the scheduler
 				// may cause it to be executed *after* the downstream node has
 				// already called our AudioOut() and started consuming.
+				//
 				//sg.generatorChannels.Reset()
-				// TODO revisit the logic here
+				//
+				// UPDATE
+				// Unfortunately, without a signal to the original downstream
+				// Node, it will continue to attempt to receive audio from an
+				// abandoned channel. Since we can't guarantee order of
+				// evaluation of Connect signals, we need the Connect action
+				// to propegate a Disconnection signal to the original Node
+				// in single-ancestry situations.
 				sg.ChildNode = n
 				D("simpleGenerator got Connect %s OK", n.Name())
 

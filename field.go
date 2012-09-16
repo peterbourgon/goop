@@ -241,12 +241,18 @@ func (sc singleChild) Children() []Node {
 	return []Node{sc.ChildNode}
 }
 
-func (sc *singleChild) processEvent(ev Event) {
+func (sc *singleChild) processEvent(ev Event, container Node) {
 	switch ev.Type {
 	case Connect: // downstream
 		node, nodeOk := ev.Arg.(Node)
 		if !nodeOk {
 			break
+		}
+		if sc.ChildNode != nilNode {
+			// This means a=>b, a=>c has been executed without an intermediate
+			// a≠>b. Since we have only one child, the original necessarily
+			// must be disconnected.
+			sc.ChildNode.Events() <- DisconnectionEvent(container)
 		}
 		sc.ChildNode = node
 
@@ -263,10 +269,10 @@ type singleAncestry struct {
 	singleChild
 }
 
-func (sa *singleAncestry) processEvent(ev Event) {
+func (sa *singleAncestry) processEvent(ev Event, container Node) {
 	switch ev.Type {
 	case Connect, Disconnect: // downstream
-		sa.singleChild.processEvent(ev)
+		sa.singleChild.processEvent(ev, container)
 
 	case Connection, Disconnection: // upstream
 		sa.singleParent.processEvent(ev)

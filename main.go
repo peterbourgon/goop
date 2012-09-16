@@ -6,8 +6,8 @@ import (
 )
 
 var (
-	filename = flag.String("filename", "default.txt", "command file")
-	dotfile  = flag.String("dotfile", "", "Field representation will be written here")
+	cmdfile = flag.String("cmdfile", "default.txt", "command file")
+	dotfile = flag.String("dotfile", "", "Field representation will be written here")
 )
 
 func init() {
@@ -21,7 +21,7 @@ func main() {
 	f.Add(NewClock(f))
 	p := NewFieldParser(f, o)
 
-	if fi, err := NewFileInput(*filename); err == nil {
+	if fi, err := NewFileInput(*cmdfile); err == nil {
 		REPL(fi, p)
 	}
 
