@@ -246,10 +246,14 @@ func (e *Delay) String() string {
 
 func (e *Delay) Kind() string { return "Delay" }
 
+const (
+	LoopDelay = "loopdelay"
+)
+
 // Delay's processEvent manages changes to the delay parameter.
 func (e *Delay) processEvent(ev Event) {
 	switch ev.Type {
-	case "delay":
+	case LoopDelay:
 		e.delay = ev.Value
 		depth := int64((SRATE * e.delay) / BUFSZ)
 		e.history = make(chan []float32, depth)
@@ -399,7 +403,8 @@ func (e *ADSR) processEvent(ev Event) {
 }
 
 var (
-	sampleDuration = time.Duration((float64(1.0) / float64(SRATE)) * float64(time.Second))
+	SRINV          = float64(1.0) / float64(SRATE)
+	sampleDuration = time.Duration(int64(SRINV * float64(time.Second)))
 )
 
 func (e *ADSR) processAudio(buf []float32) {

@@ -41,6 +41,9 @@ const (
 	Kill          = "kill" // stop all processing loops
 )
 
+// ParseArbitraryEvents attempts to parse the passed string into an
+// arbitrary Event. An arbitrary event has the grammar
+// ArbitraryEvent := <string> [ "-" <float32> ]
 func ParseArbitraryEvent(s string) (Event, error) {
 	toks := strings.Split(s, "-")
 	switch len(toks) {

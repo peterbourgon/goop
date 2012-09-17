@@ -212,12 +212,18 @@ func (sp singleParent) Parents() []Node {
 	return []Node{sp.ParentNode}
 }
 
-func (sp *singleParent) processEvent(ev Event) {
+func (sp *singleParent) processEvent(ev Event, container Node) {
 	switch ev.Type {
 	case Connection: // upstream
 		node, nodeOk := ev.Arg.(Node)
 		if !nodeOk {
 			break
+		}
+		if sp.ParentNode != nilNode {
+			// This means x=>a, y=>a has been executed without an intermediate
+			// x≠>a. Since we have only one parent, the original necessarily
+			// must be disconnected.
+			sp.ParentNode.Events() <- DisconnectEvent(container)
 		}
 		sp.ParentNode = node
 
@@ -275,7 +281,7 @@ func (sa *singleAncestry) processEvent(ev Event, container Node) {
 		sa.singleChild.processEvent(ev, container)
 
 	case Connection, Disconnection: // upstream
-		sa.singleParent.processEvent(ev)
+		sa.singleParent.processEvent(ev, container)
 
 	case Kill:
 		sa.singleChild.ChildNode = nilNode

@@ -21,7 +21,6 @@ func NewFileInput(filename string) (*FileInput, error) {
 	if err != nil {
 		return nil, err
 	}
-	defer f.Close()
 	r := bufio.NewReader(f)
 	return &FileInput{*r}, nil
 }
@@ -29,11 +28,14 @@ func NewFileInput(filename string) (*FileInput, error) {
 func (i *FileInput) ReadOne() (string, error) {
 	line, isPrefix, err := i.ReadLine()
 	if err != nil {
+		D("file input: ReadOne: error: %s", err)
 		return "", err
 	}
 	if isPrefix {
+		D("file input: ReadOne: error: %s", "truncated")
 		return "", fmt.Errorf("truncated")
 	}
+	D("file input: ReadOne: %s", string(line))
 	return string(line), nil
 }
 

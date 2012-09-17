@@ -7,7 +7,7 @@ import (
 
 var (
 	cmdfile = flag.String("cmdfile", "default.txt", "command file")
-	dotfile = flag.String("dotfile", "", "Field representation will be written here")
+	dotfile = flag.String("dotfile", "/Users/peter/Desktop/G.dot", "Field representation will be written here")
 )
 
 func init() {
@@ -22,7 +22,11 @@ func main() {
 	p := NewFieldParser(f, o)
 
 	if fi, err := NewFileInput(*cmdfile); err == nil {
+		D("reading %s", *cmdfile)
 		REPL(fi, p)
+		D("done reading %s", *cmdfile)
+	} else {
+		D("%s not read: %s", *cmdfile, err)
 	}
 
 	ii := &InteractiveInput{}
