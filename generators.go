@@ -195,8 +195,15 @@ func (g *simpleGenerator) String() string {
 // It uses the passed valueProvider (typically the concrete Generator itself)
 // to generate audio buffers which are pushed over the outgoing audio channel.
 func (sg *simpleGenerator) loop(vp valueProvider) {
+	var buf []float32 = nil
 	for {
+		if buf == nil {
+			buf = nextBuffer(vp)
+		}
 		select {
+		case sg.generatorChannels.audioOut <- buf:
+			buf = nil
+
 		case ev := <-sg.generatorChannels.eventIn:
 			switch ev.Type {
 			case Connection, Disconnection:
@@ -237,8 +244,7 @@ func (sg *simpleGenerator) loop(vp valueProvider) {
 			default:
 				sg.simpleParameters.processEvent(ev)
 			}
-		case sg.generatorChannels.audioOut <- nextBuffer(vp):
-			break
+
 		}
 	}
 }
