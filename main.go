@@ -7,7 +7,7 @@ import (
 
 var (
 	cmdfile = flag.String("cmdfile", "default.txt", "command file")
-	dotfile = flag.String("dotfile", "/Users/peter/Desktop/G.dot", "Field representation will be written here")
+	dotfile = flag.String("dotfile", "G.dot", "Field representation will be written here")
 )
 
 func init() {
